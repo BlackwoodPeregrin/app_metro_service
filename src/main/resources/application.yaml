@@ -1,0 +1,20 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/metro
+    username: admin_metro
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.Oracle12cDialect
+    hibernate:
+      ddl-auto: none
+      use-new-id-generator-mappings: false
+
+graph:
+  common: /home/sergey/work/example/app_metro_service/src/main/resources/configs/common_graph.json
+  special: /home/sergey/work/example/app_metro_service/src/main/resources/configs/special_graph.json
+
+time_allowance_category: /home/sergey/work/example/app_metro_service/src/main/resources/configs/statistic.json
+station: /home/sergey/work/example/app_metro_service/src/main/resources/configs/station.json

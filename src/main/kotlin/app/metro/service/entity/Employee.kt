@@ -15,25 +15,28 @@ data class Employee(
     val id: Int,
 
     @Column(name = "LAST_NAME")
-    val lastName: String,
+    var lastName: String,
 
     @Column(name = "FIRST_NAME")
-    val firstName: String,
+    var firstName: String,
 
     @Column(name = "SURNAME_NAME")
-    val surName: String,
+    var surName: String,
 
     @Column(name = "ROLE")
     var role: String,
 
     @Column(name = "WORK_ARIA")
-    var workAria: Int,
+    var workAria: String,
 
     @Column(name = "SEX")
-    val sex: String,
+    var sex: String,
 
     @Column(name = "PHONE")
-    val phone: String
+    var phone: String,
+
+    @Column(name = "ACTIVE")
+    var active: Boolean?
 ) {
-    constructor(): this(0, "", "", "", "", 0, "", "")
+    constructor(): this(0, "", "", "", "", "0", "", "", true)
 }

@@ -1,29 +1,33 @@
 package app.metro.service.controllers
 
-import app.metro.service.controllers.request.ChangeRoleEmployeeRequest
-import app.metro.service.controllers.request.ChangeWorkAriaEmployeeRequest
-import app.metro.service.controllers.response.EmployeeResponse
-import app.metro.service.controllers.response.ErrorResponse
-import app.metro.service.controllers.response.Response
-import app.metro.service.controllers.response.SuccessResponse
+import app.metro.service.controllers.request.AddWorkingHouseEmployee
+import app.metro.service.controllers.request.RequestWorkDinnerInterval
+import app.metro.service.controllers.response.*
+import app.metro.service.data.EmployeeSchedule
 import app.metro.service.entity.Employee
+import app.metro.service.repository.AssignedBidRepository
 import app.metro.service.repository.EmployeeRepository
+import app.metro.service.repository.EmployeeScheduleRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.time.DayOfWeek
+import java.time.LocalDate
 
 @RestController
 @RequestMapping("/api/v1/metro/service/employee")
 open class EmployeeController(
-    @Autowired val employeeRepo: EmployeeRepository
+    @Autowired val employeeRepo: EmployeeRepository,
+    @Autowired val assignedBidRepository: AssignedBidRepository,
+    @Autowired val scheduleRepo: EmployeeScheduleRepository
 ) {
     @GetMapping("/all")
     fun getAllEmployees(): Response {
         return try {
-            EmployeeResponse(employeeRepo.findAll())
+            EmployeeResponse(employeeRepo.findAll().filter { it.active == true })
         } catch (e: Exception) {
             ErrorResponse(message = "Fail get employees from db")
         }
@@ -32,40 +36,66 @@ open class EmployeeController(
     @PostMapping("/add")
     fun addEmployee(@RequestBody employee: Employee): Response {
         return try {
-            employeeRepo.save(employee)
+            employeeRepo.save(employee.apply { active = true })
             SuccessResponse()
         } catch (e: Exception) {
             ErrorResponse(message="Fail add employee to db")
         }
     }
 
-    @PostMapping("/change/role")
-    fun changeRoleEmployee(@RequestBody request: ChangeRoleEmployeeRequest): Response {
+    @PostMapping("/add/working_hours")
+    fun addWorkingHouseEmployee(@RequestBody request: AddWorkingHouseEmployee): Response {
         return try {
-            val employee = employeeRepo.findById(request.employeeId)
-            if (!employee.isPresent) {
-                return ErrorResponse(message="Not found employee in db with ID '${request.employeeId}'")
+            val res = mutableMapOf<DayOfWeek, RequestWorkDinnerInterval>()
+
+            for ((day, interval) in request.weekIntervals) {
+                res[DayOfWeek.of(day)] = interval
             }
-            employee.get().role = request.role
-            employeeRepo.save(employee.get())
+
+            scheduleRepo.registrationWorkingHouse(request.employeeId, res)
+
             SuccessResponse()
         } catch (e: Exception) {
-            ErrorResponse(message="Fail change work role employ with ID '${request.employeeId}' with error '${e.message}'")
+            ErrorResponse(message = e.message!!)
         }
     }
 
-    @PostMapping("/change/work_aria")
-    fun changeWorkAriaEmployee(@RequestBody request: ChangeWorkAriaEmployeeRequest): Response {
-        return try {
-            val employee = employeeRepo.findById(request.employeeId)
-            if (!employee.isPresent) {
-                return ErrorResponse(message="Not found employee in db with ID '${request.employeeId}'")
-            }
-            employee.get().workAria = request.workAria
-            employeeRepo.save(employee.get())
-            SuccessResponse()
-        } catch (e: Exception) {
-            ErrorResponse(message="Fail change work aria employ with ID '${request.employeeId}' with error '${e.message}'")
+    @PostMapping("/remove")
+    fun removeEmployee(@RequestBody employeeId: Int): Response {
+        val employee = employeeRepo.findById(employeeId)
+        if (!employee.isPresent) {
+            return ErrorResponse(message="Not found employee in db with ID '${employeeId}'")
         }
+
+        val futureBidForEmployee = assignedBidRepository.assignedAllFutureBidByEmployee(employee.get(), LocalDate.now())
+
+        return if (futureBidForEmployee.isEmpty()) {
+            employeeRepo.save(employee.get().apply { active = false })
+            SuccessResponse()
+        } else {
+            UnCanceledBid(futureBidForEmployee.map { it.id }, "For this employee have next bids")
+        }
+    }
+
+    @PostMapping("/change")
+    fun changeEmployee(@RequestBody modifyEmployee: Employee): Response {
+        val employee = employeeRepo.findById(modifyEmployee.id)
+        if (!employee.isPresent) {
+            return ErrorResponse(message="Not found employee in db with ID '${modifyEmployee.id}'")
+        }
+
+        employeeRepo.save(employee.get()
+            .apply {
+                lastName = modifyEmployee.lastName
+                firstName = modifyEmployee.firstName
+                surName = modifyEmployee.surName
+                role = modifyEmployee.role
+                workAria = modifyEmployee.workAria
+                sex = modifyEmployee.sex
+                phone = modifyEmployee.phone
+            }
+        )
+
+        return SuccessResponse()
     }
 }

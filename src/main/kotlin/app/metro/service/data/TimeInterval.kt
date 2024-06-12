@@ -3,9 +3,9 @@ package app.metro.service.data
 import java.time.LocalDate
 import java.time.LocalTime
 
-data class WorkInterval(
+data class TimeInterval(
+    val startDate: LocalDate,
+    val endDate: LocalDate,
     val startTime: LocalTime,
     val endTime: LocalTime,
-    val startDate: LocalDate,
-    val endDate: LocalDate
 )

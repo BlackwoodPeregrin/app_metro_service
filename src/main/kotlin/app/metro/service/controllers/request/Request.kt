@@ -1,11 +1,18 @@
 package app.metro.service.controllers.request
 
-data class ChangeRoleEmployeeRequest(
-    val employeeId: Int,
-    val role: String
+import java.time.LocalTime
+
+data class RequestInterval(
+    val start: LocalTime,
+    val end: LocalTime
 )
 
-data class ChangeWorkAriaEmployeeRequest(
+data class RequestWorkDinnerInterval(
+    val work: RequestInterval,
+    val dinner: RequestInterval
+)
+
+data class AddWorkingHouseEmployee(
     val employeeId: Int,
-    val workAria: Int
+    val weekIntervals: Map<Int, RequestWorkDinnerInterval>
 )

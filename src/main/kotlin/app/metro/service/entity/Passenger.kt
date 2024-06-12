@@ -15,21 +15,24 @@ data class Passenger(
     val id: Int,
 
     @Column(name = "LAST_NAME")
-    val lastName: String,
+    var lastName: String,
 
     @Column(name = "FIRST_NAME")
-    val firstName: String,
+    var firstName: String,
 
     @Column(name = "SURNAME_NAME")
-    val surName: String,
+    var surName: String,
 
     @Column(name = "CATEGORY")
-    val category: String,
+    var category: String,
 
     @Column(name = "PHONE")
-    val phone: String
+    var phone: String,
+
+    @Column(name = "ACTIVE")
+    var active: Boolean?
 ) {
-    constructor(): this(0, "", "", "", "", "")
+    constructor(): this(0, "", "", "", "", "", true)
 }
 
 

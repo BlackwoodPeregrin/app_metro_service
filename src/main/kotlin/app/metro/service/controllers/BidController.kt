@@ -1,27 +1,25 @@
 package app.metro.service.controllers
 
-import app.metro.service.controllers.response.AddBuildResponse
-import app.metro.service.controllers.response.Response
-import app.metro.service.data.EmployeeSex
-import app.metro.service.data.PassengerCategory
-import app.metro.service.data.WorkInterval
+import app.metro.service.controllers.response.*
+import app.metro.service.data.*
 import app.metro.service.entity.Bid
 import app.metro.service.entity.Employee
 import app.metro.service.repository.BidRepository
 import app.metro.service.repository.AssignedBidRepository
 import app.metro.service.repository.PassengerRepository
-import app.metro.service.repository.WorkScheduleRepository
+import app.metro.service.repository.EmployeeScheduleRepository
 import app.metro.service.services.MetroNavigatorService
 import app.metro.service.services.TimeAllowanceCategoryService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.time.LocalDate
 import java.time.LocalTime
-import java.util.SortedMap
 import kotlin.math.max
 
 private enum class BidAvailabilityStatus {
@@ -35,7 +33,7 @@ private enum class BidAvailabilityStatus {
 open class BidController(
     @Autowired private val passengerRepo: PassengerRepository,
     @Autowired private val bidRepository: BidRepository,
-    @Autowired private val scheduleRepo: WorkScheduleRepository,
+    @Autowired private val scheduleRepo: EmployeeScheduleRepository,
     @Autowired private val assignedBidRepo: AssignedBidRepository,
     @Autowired private val metroNavigator: MetroNavigatorService,
     @Autowired private val timeAllowance: TimeAllowanceCategoryService
@@ -47,81 +45,124 @@ open class BidController(
         private val logger: Logger = LoggerFactory.getLogger(this::class.java)
     }
 
-    private fun canDoBidBeforeOrAfter(oldBid: Bid, newBid: Bid): Pair<BidAvailabilityStatus, Int> {
-        var timeStartOldBid = 0
-        var timeStartNewBid = 0
-
-        if (oldBid.date == newBid.date) {
-            timeStartOldBid = oldBid.time.toSecondOfDay()
-            timeStartNewBid = newBid.time.toSecondOfDay()
-        } else if (newBid.date > oldBid.date) {
-            timeStartOldBid = oldBid.time.toSecondOfDay()
-            timeStartNewBid = 24 * 3600 + newBid.time.toSecondOfDay()
-        } else {
-            timeStartOldBid = 24 * 3600 + oldBid.time.toSecondOfDay()
-            timeStartNewBid = newBid.time.toSecondOfDay()
+    @PostMapping("/accept")
+    fun employeeAcceptBid(@RequestBody idBid: Int): Response {
+        return try {
+            changeStatusBid(idBid, BidStatus.ACCEPTED)
+            SuccessResponse()
+        } catch (e: Exception) {
+            ErrorResponse(message = e.message!!)
         }
-
-        if (timeStartNewBid > timeStartOldBid) {
-            val diff = timeStartNewBid - (timeStartOldBid + oldBid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(oldBid.stID2, newBid.stID1,true) + TIME_MIN_SPARE_EMPLOYEE)
-            println(timeStartNewBid)
-            println(timeStartOldBid)
-            println(oldBid.timePredict!!.toSeconds())
-            println("${oldBid.stID2} -> ${newBid.stID1} ")
-            println(metroNavigator.wayTimeBetween(oldBid.stID2, newBid.stID1,true))
-            println(TIME_MIN_SPARE_EMPLOYEE)
-
-            if (diff >= 0) {
-                return Pair(BidAvailabilityStatus.AFTER, diff)
-            }
-        } else {
-            val diff = timeStartOldBid - (timeStartNewBid + newBid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(newBid.stID2, oldBid.stID1, true) + TIME_MIN_SPARE_EMPLOYEE)
-
-            println(timeStartOldBid)
-            println(timeStartNewBid)
-            println(newBid.timePredict!!.toSeconds())
-            println("${newBid.stID2} -> ${oldBid.stID1} ")
-            println(metroNavigator.wayTimeBetween(newBid.stID2, oldBid.stID1, true))
-            println(TIME_MIN_SPARE_EMPLOYEE)
-
-            if (diff >= 0) {
-                return Pair(BidAvailabilityStatus.BEFORE, diff)
-            }
-        }
-
-        return Pair(BidAvailabilityStatus.NONE, -1)
     }
 
-    private fun isPossibleTakeFromStartWork(workInterval: WorkInterval, newBid: Bid): Boolean {
-        val timeStartWork = workInterval.startTime.toSecondOfDay()
-        val timeStartBid = newBid.time.toSecondOfDay()
-
-        val timeDiff = if (timeStartWork > timeStartBid) {
-            (24 * 3600 + timeStartBid) - (timeStartWork + TIME_MIN_SPARE_EMPLOYEE)
-        } else {
-            timeStartBid - (timeStartWork + TIME_MIN_SPARE_EMPLOYEE)
+    @PostMapping("/on_the_way")
+    fun employeeOnTheWay(@RequestBody idBid: Int): Response {
+        return try {
+            changeStatusBid(idBid, BidStatus.ON_THE_WAY)
+            SuccessResponse()
+        } catch (e: Exception) {
+            ErrorResponse(message = e.message!!)
         }
-
-        return timeDiff >= 0
     }
 
-    private fun isPossibleTakeFromEndWork(workInterval: WorkInterval, newBid: Bid): Boolean {
-        val timeEndWork = workInterval.endTime.toSecondOfDay()
-        val timeStartBid = newBid.time.toSecondOfDay()
+    @PostMapping("/wait_passenger")
+    fun employeeWaitPassenger(@RequestBody idBid: Int): Response {
+        return try {
+            changeStatusBid(idBid, BidStatus.WAIT_PASSENGER)
+            SuccessResponse()
+        } catch (e: Exception) {
+            ErrorResponse(message = e.message!!)
+        }
+    }
 
-        val timeDiff = if (workInterval.endDate == newBid.date) {
-            timeEndWork - (timeStartBid + newBid.timePredict!!.toSeconds())
-        } else {
-            (24 * 3600 + timeEndWork) - (timeStartBid + newBid.timePredict!!.toSeconds())
+    @PostMapping("/start")
+    fun employeeStartBid(@RequestBody idBid: Int): Response {
+        val bid = bidRepository.findById(idBid)
+        if (!bid.isPresent) {
+            return ErrorResponse(message = "Not found ID bid '$idBid'")
         }
 
-        return timeDiff >= 0
+        bidRepository.save(bid.get()
+            .apply {
+                timeStart = LocalTime.now()
+                status = BidStatus.STARTED.convertToString()
+            }
+        )
+
+        return SuccessResponse()
+    }
+
+    @PostMapping("/finish")
+    fun employeeFinishBid(@RequestBody idBid: Int): Response {
+        val bid = bidRepository.findById(idBid)
+        if (!bid.isPresent) {
+            return ErrorResponse(message = "Not found ID bid '$idBid'")
+        }
+
+        bidRepository.save(bid.get()
+            .apply {
+                timeOver = LocalTime.now()
+                status = BidStatus.FINISHED.convertToString()
+            }
+        )
+
+        return SuccessResponse()
+    }
+
+    @PostMapping("/late/employee")
+    fun employeeLate(@RequestBody idBid: Int): Response {
+        return try {
+            changeStatusBid(idBid, BidStatus.INSPECTOR_LATE)
+            SuccessResponse()
+        } catch (e: Exception) {
+            ErrorResponse(message = e.message!!)
+        }
+    }
+
+    @PostMapping("/late/passenger")
+    fun passengerLate(@RequestBody idBid: Int): Response {
+        return try {
+            changeStatusBid(idBid, BidStatus.PASSENGER_LATE)
+            SuccessResponse()
+        } catch (e: Exception) {
+            ErrorResponse(message = e.message!!)
+        }
+    }
+
+    @PostMapping("/cansel")
+    fun canselBid(@RequestBody idBid: Int): Response {
+        return try {
+            assignedBidRepo.removeBidFromEmployees(idBid)
+            changeStatusBid(idBid, BidStatus.CANSEL)
+            SuccessResponse()
+        } catch (e: Exception) {
+            ErrorResponse(message = e.message!!)
+        }
+    }
+
+    @GetMapping("/all")
+    fun getAllBids(): Response {
+        val res = bidRepository.findAll().map { bid ->
+            BidResponseWithEmployees(
+                bid = bid,
+                employeesId = assignedBidRepo.assignedEmployeesByBid(bid.id)
+            )
+        }
+        return AllBidResponse(res)
+    }
+
+    @PostMapping("/calculate")
+    fun calculateTimeBid(@RequestBody newBid: Bid): Response {
+        calculatePredictTime(newBid)
+
+        return CalculateBidResponse(newBid.timePredict!!)
     }
 
     @PostMapping("/add")
     fun addNewBid(@RequestBody newBid: Bid): Response {
-        /* рассчитанное нашим алгоритмом длительность выполнения новой заявки */
-        val bidExecTime: Int = calculatePredictTime(newBid)
+        if (newBid.timePredict == null) {
+            calculatePredictTime(newBid)
+        }
 
         /*
         *   кто может взять заявку, ключом является время в секундах которое будет в запасе перед неачалом новой заявки
@@ -131,7 +172,7 @@ open class BidController(
         val potentialTake = sortedMapOf<Int, MutableList<Employee>>()
 
         /* получаем список сотрудников + их время работы кто потенциально может взять заявку */
-        for ((employee, interval) in scheduleRepo.getWhoCanTakeBid(newBid.date, newBid.time)) {
+        for ((employee, schedule) in scheduleRepo.getWhoCanTakeBid(newBid.date, newBid.time)) {
 
             logger.info("potential employee $employee")
 
@@ -147,18 +188,18 @@ open class BidController(
 
                 val variant: Pair<BidAvailabilityStatus, Int> = canDoBidBeforeOrAfter(oldBid = bid, newBid = newBid)
 
-                println(variant)
+                logger.info("variant = $variant")
 
                 when (variant.first) {
                     BidAvailabilityStatus.BEFORE -> {
-                        if (i != 0 || isPossibleTakeFromStartWork(interval, newBid)) {
+                        if ((i != 0 || isPossibleTakeFromStartWork(schedule, newBid)) && isNotCrossDinner(schedule, newBid)) {
                             potentialTake.getOrPut(variant.second) { mutableListOf() }.add(employee)
                         }
                         break
                     }
                     BidAvailabilityStatus.AFTER -> {
                         if (i == employeeBids.lastIndex) {
-                            if (isPossibleTakeFromEndWork(interval, newBid)) {
+                            if (isPossibleTakeFromEndWork(schedule, newBid) && isNotCrossDinner(schedule, newBid)) {
                                 potentialTake.getOrPut(variant.second) { mutableListOf() }.add(employee)
                             }
                             break
@@ -204,9 +245,9 @@ open class BidController(
                 if (needMales == 0 && needFemale == 0) {
                     logger.info("All searched who need with already have bids")
 
-                    bidRepository.save(newBid)
+                    saveNewBid(newBid)
                     assignedBidRepo.assignNewBid(employeesTakeBid, newBid)
-                    return AddBuildResponse(added = true)
+                    return AddBidResponse(added = true)
                 }
             }
         }
@@ -223,7 +264,8 @@ open class BidController(
             logger.info("potential employee $employee")
 
             if (isPossibleTakeFromStartWork(interval, newBid)
-                && isPossibleTakeFromEndWork(interval, newBid)) {
+                && isPossibleTakeFromEndWork(interval, newBid)
+                && isNotCrossDinner(interval, newBid)) {
                 when (EmployeeSex.convertFromString(employee.sex)) {
                     EmployeeSex.MALE -> {
                         if (needMales != 0) {
@@ -240,18 +282,121 @@ open class BidController(
                 }
 
                 if (needMales == 0 && needFemale == 0) {
-                    bidRepository.save(newBid)
+                    saveNewBid(newBid)
                     assignedBidRepo.assignNewBid(employeesTakeBid, newBid)
-                    return AddBuildResponse(added = true)
+                    return AddBidResponse(added = true)
                 }
             }
         }
 
-        return AddBuildResponse(added = false)
+        return AddBidResponse(added = false)
     }
 
+    private fun changeStatusBid(idBid: Int, newStatus: BidStatus) {
+        val bid = bidRepository.findById(idBid)
+        if (!bid.isPresent) {
+            throw RuntimeException("Not found ID bid '$idBid'")
+        }
+        bidRepository.save(bid.get().apply { status = newStatus.convertToString() })
+    }
 
-    private fun calculatePredictTime(newBid: Bid): Int {
+    private fun saveNewBid(newBid: Bid) {
+        newBid.createdDate = LocalDate.now()
+        newBid.createdTime = LocalTime.now()
+        newBid.status = BidStatus.NEW.convertToString()
+        bidRepository.save(newBid)
+    }
+
+    private fun canDoBidBeforeOrAfter(oldBid: Bid, newBid: Bid): Pair<BidAvailabilityStatus, Int> {
+        var timeStartOldBid = 0
+        var timeStartNewBid = 0
+
+        if (oldBid.date == newBid.date) {
+            timeStartOldBid = oldBid.time.toSecondOfDay()
+            timeStartNewBid = newBid.time.toSecondOfDay()
+        } else if (newBid.date > oldBid.date) {
+            timeStartOldBid = oldBid.time.toSecondOfDay()
+            timeStartNewBid = 24 * 3600 + newBid.time.toSecondOfDay()
+        } else {
+            timeStartOldBid = 24 * 3600 + oldBid.time.toSecondOfDay()
+            timeStartNewBid = newBid.time.toSecondOfDay()
+        }
+
+        if (timeStartNewBid > timeStartOldBid) {
+            val diff = timeStartNewBid - (timeStartOldBid + TIME_MAX_WAIT_PASSENGER +  oldBid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(oldBid.stID2, newBid.stID1,true) + TIME_MIN_SPARE_EMPLOYEE)
+
+            if (diff >= 0) {
+                return Pair(BidAvailabilityStatus.AFTER, diff)
+            }
+        } else {
+            val diff = timeStartOldBid - (timeStartNewBid + TIME_MAX_WAIT_PASSENGER + newBid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(newBid.stID2, oldBid.stID1, true) + TIME_MIN_SPARE_EMPLOYEE)
+
+            if (diff >= 0) {
+                return Pair(BidAvailabilityStatus.BEFORE, diff)
+            }
+        }
+
+        return Pair(BidAvailabilityStatus.NONE, -1)
+    }
+
+    private fun isPossibleTakeFromStartWork(schedule: EmployeeSchedule, newBid: Bid): Boolean {
+        logger.info("isPossibleTakeFromStartWork")
+
+        val timeStartWork = schedule.workTime.startTime.toSecondOfDay()
+        val timeStartBid = newBid.time.toSecondOfDay()
+
+        val timeDiff = if (schedule.workTime.startDate == newBid.date) {
+            timeStartBid - (timeStartWork + TIME_MIN_SPARE_EMPLOYEE)
+        } else {
+            (24 * 3600 + timeStartBid) - (timeStartWork + TIME_MIN_SPARE_EMPLOYEE)
+        }
+
+        logger.info("timeDiff = $timeDiff")
+
+        return timeDiff >= 0
+    }
+
+    private fun isNotCrossDinner(schedule: EmployeeSchedule, newBid: Bid): Boolean {
+        logger.info("isNotCrossDinner")
+
+        val dinner = schedule.dinnerTime
+
+        var timeDiff = 0
+
+        if (dinner.startDate == newBid.date) {
+            if (dinner.startTime > newBid.time) {
+                timeDiff = dinner.startTime.toSecondOfDay() - (newBid.time.toSecondOfDay() + TIME_MAX_WAIT_PASSENGER + newBid.timePredict!!.toSecondOfDay())
+            }
+        } else {
+            if (dinner.startTime < newBid.time) {
+                timeDiff = (24 * 3600 + dinner.startTime.toSecondOfDay()) - (newBid.time.toSecondOfDay() + TIME_MAX_WAIT_PASSENGER + newBid.timePredict!!.toSecondOfDay())
+            }
+        }
+
+        logger.info("timeDiff = $timeDiff")
+
+        return timeDiff >= 0
+
+    }
+
+    private fun isPossibleTakeFromEndWork(schedule: EmployeeSchedule, newBid: Bid): Boolean {
+        logger.info("isPossibleTakeFromEndWork")
+
+        val timeEndWork = schedule.workTime.endTime.toSecondOfDay()
+        val timeStartBid = newBid.time.toSecondOfDay()
+
+        val timeDiff = if (schedule.workTime.endDate == newBid.date) {
+            timeEndWork - (timeStartBid + TIME_MAX_WAIT_PASSENGER + newBid.timePredict!!.toSeconds())
+        } else {
+            (24 * 3600 + timeEndWork) - (timeStartBid + TIME_MAX_WAIT_PASSENGER + newBid.timePredict!!.toSeconds())
+        }
+
+        logger.info("timeDiff = $timeDiff")
+
+        return timeDiff >= 0
+    }
+
+    private fun calculatePredictTime(newBid: Bid) {
         val passenger = passengerRepo.findById(newBid.passengerId)
         if (!passenger.isPresent) {
             throw RuntimeException("Passenger with id '${newBid.passengerId}' not found")
@@ -282,12 +427,10 @@ open class BidController(
         val minutes = ((distance + delta) % 3600) / 60
         val seconds = ((distance + delta) % 3600) % 60
 
-        return if (seconds != 0) {
+        if (seconds != 0) {
             newBid.timePredict = LocalTime.of(hours, minutes + 1)
-            hours * 3600 + (minutes + 1) * 60
         } else {
             newBid.timePredict = LocalTime.of(hours, minutes)
-            hours * 3600 + minutes * 60
         }
     }
 }

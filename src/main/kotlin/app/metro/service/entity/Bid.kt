@@ -20,10 +20,10 @@ data class Bid(
     val passengerId: Int,
 
     @Column(name = "CREATED_DATE")
-    val createdDate: LocalDate,
+    var createdDate: LocalDate?,
 
     @Column(name = "CREATED_TIME")
-    val createdTime: LocalTime,
+    var createdTime: LocalTime?,
 
     @Column(name = "BID_DATE")
     val date: LocalDate,
@@ -32,7 +32,7 @@ data class Bid(
     val time: LocalTime,
 
     @Column(name = "STATUS")
-    val status: String,
+    var status: String?,
 
     @Column(name = "ID_ST1")
     val stID1: Int,

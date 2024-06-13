@@ -140,20 +140,22 @@ open class EmployeeScheduleRepository(
                 }
 
                 if (time < startTimeDinner || time > endTimeDinner.plusMinutes(15)) { // 15 минут добавляем для логики подссчтеа обеда
-                    res[employee.get()] = EmployeeSchedule(
-                        workTime = TimeInterval(
-                            startTime = startTimeWork,
-                            endTime = endTimeWork,
-                            startDate = date,
-                            endDate = endDateWork
-                        ),
-                        dinnerTime = TimeInterval(
-                            startTime = startTimeDinner,
-                            endTime = endTimeDinner,
-                            startDate = startEndDinnerDate.first,
-                            endDate = startEndDinnerDate.second
+                    if (employee.get().active == true && employee.get().sick == false) {
+                        res[employee.get()] = EmployeeSchedule(
+                            workTime = TimeInterval(
+                                startTime = startTimeWork,
+                                endTime = endTimeWork,
+                                startDate = date,
+                                endDate = endDateWork
+                            ),
+                            dinnerTime = TimeInterval(
+                                startTime = startTimeDinner,
+                                endTime = endTimeDinner,
+                                startDate = startEndDinnerDate.first,
+                                endDate = startEndDinnerDate.second
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
@@ -165,7 +167,8 @@ open class EmployeeScheduleRepository(
 @Component
 open class AssignedBidRepository(
     @Autowired val jdbcTemplate: JdbcTemplate,
-    @Autowired val bidRepository: BidRepository
+    @Autowired val bidRepository: BidRepository,
+    @Autowired val employeeRepo: EmployeeRepository
 ) {
     fun assignedBidByEmployee(employee: Employee, bidDate: LocalDate): List<Bid> {
         val sql = """
@@ -182,6 +185,18 @@ open class AssignedBidRepository(
                 throw RuntimeException("Reference to id bid '$bidId' not found in table BID")
             }
             bid.get()
+        }
+    }
+
+    fun assignedEmployeeByBid(bidId: Int): List<Employee> {
+        val sql = """
+            SELECT ID_EMPLOYEE FROM ASSIGNED_BIDS
+            WHERE ID_BID = $bidId 
+        """.trimIndent()
+
+        return jdbcTemplate.query(sql) { row: ResultSet, _: Int ->
+            val employeeId = row.getInt("ID_BID")
+            employeeRepo.findById(employeeId).get()
         }
     }
 

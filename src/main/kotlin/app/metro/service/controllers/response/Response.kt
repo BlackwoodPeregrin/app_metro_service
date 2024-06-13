@@ -50,3 +50,6 @@ class UnCanceledBid(
     override val message: String
 ) : ErrorResponse(message = message)
 
+class NotDistributedBids(
+    val bidsId: List<Int>,
+): SuccessResponse()

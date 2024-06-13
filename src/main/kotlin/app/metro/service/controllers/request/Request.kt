@@ -16,3 +16,9 @@ data class AddWorkingHouseEmployee(
     val employeeId: Int,
     val weekIntervals: Map<Int, RequestWorkDinnerInterval>
 )
+
+
+data class ChangeBidPredictTime(
+    val bidId: Int,
+    val timePredict: LocalTime
+)

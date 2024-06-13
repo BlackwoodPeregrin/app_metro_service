@@ -1,15 +1,12 @@
 package app.metro.service.controllers
 
+import app.metro.service.controllers.request.ChangeBidPredictTime
 import app.metro.service.controllers.response.*
 import app.metro.service.data.*
 import app.metro.service.entity.Bid
 import app.metro.service.entity.Employee
-import app.metro.service.repository.BidRepository
-import app.metro.service.repository.AssignedBidRepository
-import app.metro.service.repository.PassengerRepository
-import app.metro.service.repository.EmployeeScheduleRepository
-import app.metro.service.services.MetroNavigatorService
-import app.metro.service.services.TimeAllowanceCategoryService
+import app.metro.service.repository.*
+import app.metro.service.services.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -20,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.Duration
 import kotlin.math.max
 
 private enum class BidAvailabilityStatus {
@@ -36,7 +34,9 @@ open class BidController(
     @Autowired private val scheduleRepo: EmployeeScheduleRepository,
     @Autowired private val assignedBidRepo: AssignedBidRepository,
     @Autowired private val metroNavigator: MetroNavigatorService,
-    @Autowired private val timeAllowance: TimeAllowanceCategoryService
+    @Autowired private val timeAllowance: TimeAllowanceCategoryService,
+    @Autowired private val employeeRepository: EmployeeRepository,
+    @Autowired private val freeSlotCalcService: FreeSlotCalculation
 ) {
     companion object {
         private const val TIME_MIN_SPARE_EMPLOYEE = 900 // 15 мин
@@ -151,11 +151,172 @@ open class BidController(
         return AllBidResponse(res)
     }
 
+    @PostMapping("/all/employee")
+    fun getAllBidByEmployee(@RequestBody employeeId: Int): Response {
+        val employee = employeeRepository.findById(employeeId)
+        if (!employee.isPresent) {
+            return ErrorResponse(message="Not found employee in db with ID '${employeeId}'")
+        }
+
+        class Response(val bids: List<Bid>) : SuccessResponse()
+
+        return Response(assignedBidRepo.assignedAllFutureBidByEmployee(employee.get(), LocalDate.now()))
+    }
+
     @PostMapping("/calculate")
     fun calculateTimeBid(@RequestBody newBid: Bid): Response {
         calculatePredictTime(newBid)
 
         return CalculateBidResponse(newBid.timePredict!!)
+    }
+
+
+    @PostMapping("/edit/predictTime")
+    fun editPredictionTimeBid(@RequestBody request: ChangeBidPredictTime): Response {
+//        val bid = bidRepository.findById(request.bidId)
+//        if (!bid.isPresent) {
+//            throw RuntimeException("Not found ID bid '${bid.get().id}'")
+//        }
+//        if (bid.get().status == BidStatus.FINISHED.convertToString()
+//            && bid.get().status == BidStatus.CANSEL.convertToString()
+//            && bid.get().status == BidStatus.NOT_DISTRIBUTED.convertToString()) {
+//            throw RuntimeException("Bid with '${bid.get().id}' in active")
+//        }
+//
+//        if (request.timePredict < bid.get().timePredict) {
+//
+//
+//
+//
+//
+//            bidRepository.save(bid.get().apply { timePredict = request.timePredict })
+//            return SuccessResponse()
+//        }
+
+
+        return SuccessResponse()
+    }
+
+    @PostMapping("/alternative_time")
+    fun alternativeTimeBid(@RequestBody newBid: Bid): Response {
+        if (newBid.timePredict == null) {
+            calculatePredictTime(newBid)
+        }
+
+        val schedules = mutableMapOf<Int, EmployeeConf>()
+
+        for ((employee, schedule) in scheduleRepo.getWhoCanTakeBid(newBid.date, newBid.time)) {
+            val gender = EmployeeSex.convertFromString(employee.sex)
+            val busySlots = mutableListOf<TimeSlot>()
+
+            logger.info("schedule = $schedule")
+
+            val work = if (schedule.workTime.startTime < schedule.workTime.endTime) {
+                TimeSlot(schedule.workTime.startTime, schedule.workTime.endTime)
+            } else {
+                if (newBid.date == schedule.workTime.startDate) {
+                    TimeSlot(schedule.workTime.startTime, LocalTime.of(23, 59))
+                } else {
+                    TimeSlot(LocalTime.MIDNIGHT, schedule.workTime.endTime)
+                }
+            }
+
+            val employeeBids: List<Bid> = assignedBidRepo.assignedBidByEmployee(employee, newBid.date)
+                .sortedWith(compareBy({ it.date }, { it.time }))
+
+            var endDinnerTime = schedule.dinnerTime.endTime.toSecondOfDay() + TIME_MIN_SPARE_EMPLOYEE
+
+            for (i in employeeBids.indices) {
+                val bid: Bid = employeeBids[i]
+
+                val timeStart: Int = if (i == 0) {
+                    bid.time.toSecondOfDay()
+                } else {
+                    bid.time.toSecondOfDay() - TIME_MIN_SPARE_EMPLOYEE - metroNavigator.wayTimeBetween(bid.stID2, newBid.stID1, isCommonGraph = true)
+                }
+
+                val timeEnd: Int = bid.time.toSecondOfDay() + TIME_MAX_WAIT_PASSENGER + bid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(bid.stID2, newBid.stID1, isCommonGraph = true) + TIME_MIN_SPARE_EMPLOYEE
+
+                val slot = if (timeStart > timeEnd) {
+                    TimeSlot(start = localTimeFromSeconds(timeStart), end = LocalTime.of(23, 59))
+                } else {
+                    TimeSlot(start = localTimeFromSeconds(timeStart), end = localTimeFromSeconds(timeEnd))
+                }
+
+                busySlots.add(slot)
+
+                if (bid.time < schedule.dinnerTime.startTime) {
+                    endDinnerTime = schedule.dinnerTime.endTime.toSecondOfDay() + TIME_MIN_SPARE_EMPLOYEE + metroNavigator.wayTimeBetween(bid.stID2, newBid.stID1, isCommonGraph = true)
+                }
+            }
+
+            val dinner = if (schedule.dinnerTime.startTime < schedule.dinnerTime.endTime) {
+                TimeSlot(schedule.dinnerTime.startTime, localTimeFromSeconds(endDinnerTime))
+            } else {
+                if (newBid.date == schedule.dinnerTime.startDate) {
+                    TimeSlot(schedule.workTime.startTime, LocalTime.of(23, 59))
+                } else {
+                    TimeSlot(LocalTime.MIDNIGHT, schedule.workTime.endTime)
+                }
+
+            }
+
+            busySlots.add(dinner)
+
+            val sortedBusySlots = busySlots.sortedBy { it.start }.toMutableList()
+
+            var p1 = 0
+            var p2 = 1
+            while (p2 < sortedBusySlots.size) {
+                if (sortedBusySlots[p1].end > sortedBusySlots[p2].start) {
+                    sortedBusySlots[p1] = TimeSlot(start = sortedBusySlots[p1].start, end = sortedBusySlots[p2].end)
+                    ++p2
+                    continue
+                }
+
+                if (p2 - p1 == 1) {
+                    ++p1
+                    ++p2
+                } else {
+                    sortedBusySlots[++p1] = sortedBusySlots[p2++]
+                }
+            }
+
+            if (sortedBusySlots[p1].end > schedule.workTime.endTime) {
+                sortedBusySlots[p1] = TimeSlot(start = sortedBusySlots[p1].start, end = schedule.workTime.endTime)
+            }
+
+            schedules[employee.id] = EmployeeConf(gender, sortedBusySlots.subList(0, p1 + 1), work)
+        }
+
+        for ((id, userData) in schedules) {
+            logger.info("employeeId '{}' userData '{}'", id, userData)
+        }
+
+        class Response(val freeSlots: List<TimeSlot>): SuccessResponse()
+
+        val duration: LocalTime = newBid.timePredict!!
+//            .plusMinutes(10)
+
+        logger.info("${duration.hour * 60 + duration.minute}")
+
+        val freeSlots = freeSlotCalcService.calculate(
+            FreeSlotConfig(
+                schedules = schedules,
+                duration = duration.hour * 60 + duration.minute,
+                requiredMen = newBid.countMale,
+                requiredWomen = newBid.countFemale
+            )
+        )
+
+
+
+        return Response(freeSlots.map {
+            TimeSlot(
+                start = it.start,
+                end = it.end.minusMinutes((duration.hour * 60 + duration.minute).toLong())
+            )
+        })
     }
 
     @PostMapping("/add")
@@ -324,12 +485,25 @@ open class BidController(
 
         if (timeStartNewBid > timeStartOldBid) {
             val diff = timeStartNewBid - (timeStartOldBid + TIME_MAX_WAIT_PASSENGER +  oldBid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(oldBid.stID2, newBid.stID1,true) + TIME_MIN_SPARE_EMPLOYEE)
+            logger.info("timeStartNewBid = $timeStartNewBid")
+            logger.info("timeStartOldBid = $timeStartOldBid")
+            logger.info("oldBid.timePredict!!.toSeconds() = ${oldBid.timePredict!!.toSeconds()}")
+            logger.info("TIME_MAX_WAIT_PASSENGER = $TIME_MAX_WAIT_PASSENGER")
+            logger.info("TIME_MAX_WAIT_PASSENGER = $TIME_MIN_SPARE_EMPLOYEE")
+            logger.info("${oldBid.stID2} -> ${newBid.stID1} = ${metroNavigator.wayTimeBetween(oldBid.stID2, newBid.stID1,true)}")
 
             if (diff >= 0) {
                 return Pair(BidAvailabilityStatus.AFTER, diff)
             }
         } else {
             val diff = timeStartOldBid - (timeStartNewBid + TIME_MAX_WAIT_PASSENGER + newBid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(newBid.stID2, oldBid.stID1, true) + TIME_MIN_SPARE_EMPLOYEE)
+
+            logger.info("timeStartNewBid = $timeStartNewBid")
+            logger.info("timeStartOldBid = $timeStartOldBid")
+            logger.info("oldBid.timePredict!!.toSeconds() = ${oldBid.timePredict!!.toSeconds()}")
+            logger.info("TIME_MAX_WAIT_PASSENGER = $TIME_MAX_WAIT_PASSENGER")
+            logger.info("TIME_MAX_WAIT_PASSENGER = $TIME_MIN_SPARE_EMPLOYEE")
+            logger.info("${newBid.stID2} -> ${oldBid.stID1} = ${metroNavigator.wayTimeBetween(oldBid.stID2, newBid.stID1,true)}")
 
             if (diff >= 0) {
                 return Pair(BidAvailabilityStatus.BEFORE, diff)
@@ -436,3 +610,13 @@ open class BidController(
 }
 
 private fun LocalTime.toSeconds(): Int = hour * 3600 + minute * 60
+
+private fun localTimeFromSeconds(secondsOf: Int): LocalTime {
+    val hours = Duration.ofSeconds(secondsOf.toLong()).toHours()
+    var minutes = Duration.ofSeconds(secondsOf - 3600 * hours).toMinutes()
+    val seconds = Duration.ofSeconds(secondsOf - (3600 * hours + 60 * minutes)).toSeconds()
+    if (seconds.toInt() != 0) {
+        ++minutes
+    }
+    return LocalTime.of(hours.toInt(), minutes.toInt(), 0)
+}

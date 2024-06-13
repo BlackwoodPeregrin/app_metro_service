@@ -36,7 +36,10 @@ data class Employee(
     var phone: String,
 
     @Column(name = "ACTIVE")
-    var active: Boolean?
+    var active: Boolean?,
+
+    @Column(name = "SICK")
+    var sick: Boolean?
 ) {
-    constructor(): this(0, "", "", "", "", "0", "", "", true)
+    constructor(): this(0, "", "", "", "", "0", "", "", true, false)
 }

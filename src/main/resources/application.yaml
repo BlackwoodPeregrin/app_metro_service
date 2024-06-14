@@ -7,7 +7,7 @@ spring:
     password: 1234
     driver-class-name: org.postgresql.Driver
   jpa:
-    database-platform: org.hibernate.dialect.Oracle12cDialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: none
       use-new-id-generator-mappings: false

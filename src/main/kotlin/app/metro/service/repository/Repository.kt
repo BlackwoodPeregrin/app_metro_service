@@ -139,7 +139,7 @@ open class EmployeeScheduleRepository(
                     Pair(date, date.plusDays(1))
                 }
 
-                if (time < startTimeDinner || time > endTimeDinner.plusMinutes(15)) { // 15 минут добавляем для логики подссчтеа обеда
+                if (time < startTimeDinner || time >= endTimeDinner.plusMinutes(15)) { // 15 минут добавляем для логики подссчтеа обеда
                     if (employee.get().active == true && employee.get().sick == false) {
                         res[employee.get()] = EmployeeSchedule(
                             workTime = TimeInterval(

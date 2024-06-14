@@ -212,10 +212,10 @@ open class BidController(
             logger.info("schedule = $schedule")
 
             val work = if (schedule.workTime.startTime < schedule.workTime.endTime) {
-                TimeSlot(schedule.workTime.startTime, schedule.workTime.endTime)
+                TimeSlot(schedule.workTime.startTime.plusMinutes(15), schedule.workTime.endTime)
             } else {
                 if (newBid.date == schedule.workTime.startDate) {
-                    TimeSlot(schedule.workTime.startTime, LocalTime.of(23, 59))
+                    TimeSlot(schedule.workTime.startTime.plusMinutes(15), LocalTime.of(23, 59))
                 } else {
                     TimeSlot(LocalTime.MIDNIGHT, schedule.workTime.endTime)
                 }
@@ -224,52 +224,45 @@ open class BidController(
             val employeeBids: List<Bid> = assignedBidRepo.assignedBidByEmployee(employee, newBid.date)
                 .sortedWith(compareBy({ it.date }, { it.time }))
 
-            var endDinnerTime = schedule.dinnerTime.endTime.toSecondOfDay() + TIME_MIN_SPARE_EMPLOYEE
-
             for (i in employeeBids.indices) {
                 val bid: Bid = employeeBids[i]
 
-                val timeStart: Int = if (i == 0) {
-                    bid.time.toSecondOfDay()
-                } else {
-                    bid.time.toSecondOfDay() - TIME_MIN_SPARE_EMPLOYEE - metroNavigator.wayTimeBetween(bid.stID2, newBid.stID1, isCommonGraph = true)
-                }
+                val timeStart: Int = bid.time.toSecondOfDay() - metroNavigator.wayTimeBetween(newBid.stID2, bid.stID1, isCommonGraph = true)
+                val timeEnd: Int = bid.time.toSecondOfDay() + TIME_MAX_WAIT_PASSENGER + bid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(bid.stID2, newBid.stID1, isCommonGraph = true)
 
-                val timeEnd: Int = bid.time.toSecondOfDay() + TIME_MAX_WAIT_PASSENGER + bid.timePredict!!.toSeconds() + metroNavigator.wayTimeBetween(bid.stID2, newBid.stID1, isCommonGraph = true) + TIME_MIN_SPARE_EMPLOYEE
-
-                val slot = if (timeStart > timeEnd) {
+                val slotBid = if (timeStart > timeEnd) {
                     TimeSlot(start = localTimeFromSeconds(timeStart), end = LocalTime.of(23, 59))
                 } else {
                     TimeSlot(start = localTimeFromSeconds(timeStart), end = localTimeFromSeconds(timeEnd))
                 }
 
-                busySlots.add(slot)
-
-                if (bid.time < schedule.dinnerTime.startTime) {
-                    endDinnerTime = schedule.dinnerTime.endTime.toSecondOfDay() + TIME_MIN_SPARE_EMPLOYEE + metroNavigator.wayTimeBetween(bid.stID2, newBid.stID1, isCommonGraph = true)
-                }
+                busySlots.add(slotBid)
             }
 
-            val dinner = if (schedule.dinnerTime.startTime < schedule.dinnerTime.endTime) {
-                TimeSlot(schedule.dinnerTime.startTime, localTimeFromSeconds(endDinnerTime))
+            val dinnerStart = schedule.dinnerTime.startTime.toSecondOfDay() - TIME_MAX_WAIT_PASSENGER
+            val dinnerEnd = schedule.dinnerTime.endTime.toSecondOfDay() + TIME_MIN_SPARE_EMPLOYEE
+
+            val slotDinner = if (dinnerStart > dinnerEnd) {
+                TimeSlot(start = localTimeFromSeconds(dinnerStart), end = LocalTime.of(23, 59))
             } else {
-                if (newBid.date == schedule.dinnerTime.startDate) {
-                    TimeSlot(schedule.workTime.startTime, LocalTime.of(23, 59))
-                } else {
-                    TimeSlot(LocalTime.MIDNIGHT, schedule.workTime.endTime)
-                }
-
+                TimeSlot(start = localTimeFromSeconds(dinnerStart), end = localTimeFromSeconds(dinnerEnd))
             }
 
-            busySlots.add(dinner)
-
-            val sortedBusySlots = busySlots.sortedBy { it.start }.toMutableList()
+            for (i in busySlots.indices) {
+                if (slotDinner.start < busySlots[i].start) {
+                    busySlots.add(i, slotDinner)
+                    break
+                }
+                if (i == busySlots.lastIndex) {
+                    busySlots.add(slotDinner)
+                }
+            }
 
             var p1 = 0
             var p2 = 1
-            while (p2 < sortedBusySlots.size) {
-                if (sortedBusySlots[p1].end > sortedBusySlots[p2].start) {
-                    sortedBusySlots[p1] = TimeSlot(start = sortedBusySlots[p1].start, end = sortedBusySlots[p2].end)
+            while (p2 < busySlots.size) {
+                if (busySlots[p1].end > busySlots[p2].start) {
+                    busySlots[p1] = TimeSlot(start = busySlots[p1].start, end = busySlots[p2].end)
                     ++p2
                     continue
                 }
@@ -278,15 +271,20 @@ open class BidController(
                     ++p1
                     ++p2
                 } else {
-                    sortedBusySlots[++p1] = sortedBusySlots[p2++]
+                    busySlots[++p1] = busySlots[p2++]
                 }
             }
 
-            if (sortedBusySlots[p1].end > schedule.workTime.endTime) {
-                sortedBusySlots[p1] = TimeSlot(start = sortedBusySlots[p1].start, end = schedule.workTime.endTime)
+
+            if (busySlots.first().start < schedule.workTime.startTime) {
+                busySlots[0] = TimeSlot(start = schedule.workTime.startTime, end = busySlots[0].end)
             }
 
-            schedules[employee.id] = EmployeeConf(gender, sortedBusySlots.subList(0, p1 + 1), work)
+            if (busySlots[p1].end > schedule.workTime.endTime) {
+                busySlots[p1] = TimeSlot(start = busySlots[p1].start, end = schedule.workTime.endTime)
+            }
+
+            schedules[employee.id] = EmployeeConf(gender, busySlots.subList(0, p1 + 1), work)
         }
 
         for ((id, userData) in schedules) {
@@ -296,25 +294,23 @@ open class BidController(
         class Response(val freeSlots: List<TimeSlot>): SuccessResponse()
 
         val duration: LocalTime = newBid.timePredict!!
-//            .plusMinutes(10)
+        val durationMin: Int = duration.hour * 60 + duration.minute + 10
 
-        logger.info("${duration.hour * 60 + duration.minute}")
+        logger.info("$durationMin")
 
         val freeSlots = freeSlotCalcService.calculate(
             FreeSlotConfig(
                 schedules = schedules,
-                duration = duration.hour * 60 + duration.minute,
+                duration = durationMin,
                 requiredMen = newBid.countMale,
                 requiredWomen = newBid.countFemale
             )
         )
 
-
-
         return Response(freeSlots.map {
             TimeSlot(
-                start = it.start,
-                end = it.end.minusMinutes((duration.hour * 60 + duration.minute).toLong())
+                start = it.start.plusMinutes(15 + 1), // из-за округления predictTime
+                end = it.end.minusMinutes(durationMin.toLong())
             )
         })
     }
@@ -613,10 +609,20 @@ private fun LocalTime.toSeconds(): Int = hour * 3600 + minute * 60
 
 private fun localTimeFromSeconds(secondsOf: Int): LocalTime {
     val hours = Duration.ofSeconds(secondsOf.toLong()).toHours()
-    var minutes = Duration.ofSeconds(secondsOf - 3600 * hours).toMinutes()
+    val minutes = Duration.ofSeconds(secondsOf - 3600 * hours).toMinutes()
     val seconds = Duration.ofSeconds(secondsOf - (3600 * hours + 60 * minutes)).toSeconds()
-    if (seconds.toInt() != 0) {
-        ++minutes
+
+    return if (seconds.toInt() != 0) {
+        if (minutes.toInt() == 59) {
+            if (hours.toInt() == 23) {
+                LocalTime.of(0, 0, 0)
+            } else {
+                LocalTime.of(hours.toInt() + 1, 0, 0)
+            }
+        } else {
+            LocalTime.of(hours.toInt(), minutes.toInt(), 0)
+        }
+    } else {
+        LocalTime.of(hours.toInt(), minutes.toInt(), 0)
     }
-    return LocalTime.of(hours.toInt(), minutes.toInt(), 0)
 }

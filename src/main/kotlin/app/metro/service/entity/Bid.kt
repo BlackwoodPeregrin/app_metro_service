@@ -17,7 +17,7 @@ data class Bid(
     val id: Int,
 
     @Column(name = "ID_PAS")
-    val passengerId: Int,
+    var passengerId: Int,
 
     @Column(name = "CREATED_DATE")
     var createdDate: LocalDate?,
@@ -26,25 +26,25 @@ data class Bid(
     var createdTime: LocalTime?,
 
     @Column(name = "BID_DATE")
-    val date: LocalDate,
+    var date: LocalDate,
 
     @Column(name = "BID_TIME")
-    val time: LocalTime,
+    var time: LocalTime,
 
     @Column(name = "STATUS")
     var status: String?,
 
     @Column(name = "ID_ST1")
-    val stID1: Int,
+    var stID1: Int,
 
     @Column(name = "ID_ST2")
-    val stID2: Int,
+    var stID2: Int,
 
     @Column(name = "INSPECTOR_M")
-    val countMale: Int,
+    var countMale: Int,
 
     @Column(name = "INSPECTOR_F")
-    val countFemale: Int,
+    var countFemale: Int,
 
     @Column(name = "TIME_PREDICT")
     var timePredict: LocalTime?,

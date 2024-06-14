@@ -1,14 +1,19 @@
 package app.metro.service.controllers
 
 import app.metro.service.controllers.request.AddWorkingHouseEmployee
+import app.metro.service.controllers.request.RequestInterval
 import app.metro.service.controllers.request.RequestWorkDinnerInterval
 import app.metro.service.controllers.response.*
 import app.metro.service.data.BidStatus
+import app.metro.service.data.EmployeeSex
+import app.metro.service.entity.Bid
 import app.metro.service.entity.Employee
 import app.metro.service.repository.AssignedBidRepository
 import app.metro.service.repository.BidRepository
 import app.metro.service.repository.EmployeeRepository
 import app.metro.service.repository.EmployeeScheduleRepository
+import app.metro.service.services.BidService
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -17,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
+import kotlin.math.log
 
 @RestController
 @RequestMapping("/api/v1/metro/service/employee")
@@ -25,8 +32,12 @@ open class EmployeeController(
     @Autowired val assignedBidRepository: AssignedBidRepository,
     @Autowired val scheduleRepo: EmployeeScheduleRepository,
     @Autowired val bidRepo: BidRepository,
-    @Autowired val assignedRepo: AssignedBidRepository
+    @Autowired val assignedRepo: AssignedBidRepository,
+    @Autowired val bidService: BidService
 ) {
+    companion object {
+        private val logger = LoggerFactory.getLogger(this::class.java)
+    }
     @GetMapping("/all")
     fun getAllEmployees(): Response {
         return try {
@@ -49,7 +60,7 @@ open class EmployeeController(
         }
     }
 
-    @PostMapping("/add/working_hours")
+    @PostMapping("/add/schedule")
     fun addWorkingHouseEmployee(@RequestBody request: AddWorkingHouseEmployee): Response {
         return try {
             val res = mutableMapOf<DayOfWeek, RequestWorkDinnerInterval>()
@@ -107,14 +118,29 @@ open class EmployeeController(
     fun sickLeaveEmployee(@RequestBody employeeId: Int): Response {
         return try {
             val employee = getEmployee(employeeId)
-            val notDistributed = assignedBidRepository.assignedAllFutureBidByEmployee(employee, LocalDate.now()).map { bid ->
-                bid.status = BidStatus.NOT_DISTRIBUTED.convertToString()
-                assignedRepo.removeBidFromEmployees(bid.id)
-                bid.id
-            }
+
             employeeRepo.save(employee.apply { sick = true })
 
-            NotDistributedBids(notDistributed)
+            val unAssignedBids = mutableListOf<Bid>()
+
+            for (bid in assignedRepo.assignedAllFutureBidByEmployee(employee, LocalDate.now())) {
+                logger.info("bid = $bid")
+
+                assignedRepo.removeEmployeeFromBid(bid.id, employee.id)
+
+                for (emp in scheduleRepo.getWhoCanTakeBid(bid.date, bid.time).keys) {
+                    if (bidService.canAddEmployeeToBid(bid, emp, EmployeeSex.convertFromString(employee.sex))) {
+                        assignedRepo.assignNewBid(listOf(emp), bid)
+                        break
+                    } else {
+                        bidRepo.save(bid.apply { status = BidStatus.NOT_DISTRIBUTED.convertToString()})
+                        assignedRepo.removeBidFromEmployees(bid.id)
+                        unAssignedBids.add(bid)
+                    }
+                }
+            }
+
+            NotDistributedBids(unAssignedBids.map { it.id })
         } catch (e: Exception) {
             ErrorResponse(message = e.message!!)
         }
@@ -127,6 +153,62 @@ open class EmployeeController(
             employeeRepo.save(employee.apply { sick = false })
 
             SuccessResponse()
+        } catch (e: Exception) {
+            ErrorResponse(message = e.message!!)
+        }
+    }
+
+    @PostMapping("/change/schedule")
+    fun changeWorkingHoursEmployee(@RequestBody newSchedule: AddWorkingHouseEmployee): Response {
+        return try {
+            val employee = getEmployee(newSchedule.employeeId)
+
+            scheduleRepo.removeWorkingHours(employee)
+            val res = mutableMapOf<DayOfWeek, RequestWorkDinnerInterval>()
+
+            for ((day, interval) in newSchedule.weekIntervals) {
+                res[DayOfWeek.of(day)] = interval
+            }
+            scheduleRepo.registrationWorkingHouse(employee.id, res)
+
+            val unAssignedBids = mutableListOf<Bid>()
+
+            for (bid in assignedRepo.assignedAllFutureBidByEmployee(employee, LocalDate.now())) {
+                logger.info("bid = $bid")
+
+                assignedRepo.removeEmployeeFromBid(bid.id, employee.id)
+                if (bidService.canAddEmployeeToBid(bid, employee, EmployeeSex.convertFromString(employee.sex))) {
+                    assignedRepo.assignNewBid(listOf(employee), bid)
+                } else {
+                    unAssignedBids.add(bid)
+                }
+            }
+
+            val finalUnAssigned = mutableListOf<Int>()
+            val reRegBid = mutableMapOf<Int, Int>()
+
+            for (bid in unAssignedBids) {
+                for (emp in scheduleRepo.getWhoCanTakeBid(bid.date, bid.time).keys) {
+                    if (bidService.canAddEmployeeToBid(bid, emp, EmployeeSex.convertFromString(employee.sex))) {
+                        assignedRepo.assignNewBid(listOf(emp), bid)
+                        reRegBid[bid.id] = emp.id
+                        break
+                    }
+                }
+
+                if (reRegBid[bid.id] == null) {
+                    assignedRepo.removeBidFromEmployees(bid.id)
+                    bidRepo.save(bid.apply { status = BidStatus.NOT_DISTRIBUTED.convertToString() })
+                    finalUnAssigned.add(bid.id)
+                }
+            }
+
+            class Response(val map: Map<String, Any>): SuccessResponse()
+
+            Response(mapOf<String, Any>(
+                "reRegBids" to reRegBid,
+                "notDistributedBids" to finalUnAssigned,
+            ))
         } catch (e: Exception) {
             ErrorResponse(message = e.message!!)
         }

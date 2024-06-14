@@ -1,5 +1,6 @@
 package app.metro.service.repository
 
+import app.metro.service.controllers.request.RequestInterval
 import app.metro.service.controllers.request.RequestWorkDinnerInterval
 import app.metro.service.data.BidStatus
 import app.metro.service.data.EmployeeSchedule
@@ -95,6 +96,21 @@ open class EmployeeScheduleRepository(
         }
     }
 
+    fun removeWorkingHours(employee: Employee) {
+        val sqlWH = """
+            DELETE FROM WORK_WEEK_HOURS
+            WHERE ID_EMPLOYEE = ${employee.id} 
+        """.trimIndent()
+
+        val sqlDH = """
+            DELETE FROM DINNER_WEEK_HOURS
+            WHERE ID_EMPLOYEE = ${employee.id} 
+        """.trimIndent()
+
+        jdbcTemplate.update(sqlWH)
+        jdbcTemplate.update(sqlDH)
+    }
+
     private fun getEmployeesWorkTimeInterval(date: LocalDate, time: LocalTime): Map<Employee, EmployeeSchedule> {
         val sql = """
             SELECT 
@@ -162,6 +178,73 @@ open class EmployeeScheduleRepository(
 
         return res
     }
+
+    fun getScheduleByEmployee(employee: Employee): Map<DayOfWeek, RequestWorkDinnerInterval?> {
+        val sql = """
+            SELECT
+                COALESCE(WWH.MON, 'NULL'),
+                COALESCE(DWH.MON, 'NULL'),
+                
+                COALESCE(WWH.TUE, 'NULL'), 
+                COALESCE(DWH.TUE, 'NULL'),
+                
+                COALESCE(WWH.WED, 'NULL'),
+                COALESCE(DWH.WED, 'NULL'),
+                
+                COALESCE(WWH.THU, 'NULL'),
+                COALESCE(DWH.THU, 'NULL'),
+                
+                COALESCE(WWH.FRI, 'NULL'), 
+                COALESCE(DWH.FRI, 'NULL'),
+                
+                COALESCE(WWH.SAT, 'NULL'),
+                COALESCE(DWH.SAT, 'NULL'),
+                
+                COALESCE(WWH.SAT, 'NULL'),
+                COALESCE(DWH.SUN, 'NULL')
+                
+            FROM WORK_WEEK_HOURS WWH
+            JOIN DINNER_WEEK_HOURS DWH ON DWH.ID_EMPLOYEE = WWH.ID_EMPLOYEE
+            WHERE WWH.ID_EMPLOYEE = ${employee.id}
+        """.trimIndent()
+
+        val schedule = mutableMapOf<DayOfWeek, RequestWorkDinnerInterval?>()
+
+        jdbcTemplate.query(sql) { row: ResultSet, _: Int ->
+            var idx = 1
+            schedule[DayOfWeek.MONDAY] = addDayWeekToSchedule(row.getString(idx++), row.getString(idx++))
+            schedule[DayOfWeek.TUESDAY] = addDayWeekToSchedule(row.getString(idx++), row.getString(idx++))
+            schedule[DayOfWeek.WEDNESDAY] = addDayWeekToSchedule(row.getString(idx++), row.getString(idx++))
+            schedule[DayOfWeek.THURSDAY] = addDayWeekToSchedule(row.getString(idx++), row.getString(idx++))
+            schedule[DayOfWeek.FRIDAY] = addDayWeekToSchedule(row.getString(idx++), row.getString(idx++))
+            schedule[DayOfWeek.SATURDAY] = addDayWeekToSchedule(row.getString(idx++), row.getString(idx++))
+            schedule[DayOfWeek.SUNDAY] = addDayWeekToSchedule(row.getString(idx++), row.getString(idx))
+        }
+
+        return schedule
+    }
+
+    private fun addDayWeekToSchedule(workTime: String, dinnerTime: String): RequestWorkDinnerInterval? {
+        if (workTime == "NULL" || dinnerTime == "NULL") {
+            return null
+        }
+
+        val formatter = DateTimeFormatter.ofPattern("HH:mm")
+
+        val workInterval = workTime.split("-")
+        val dinnerInterval = dinnerTime.split("-")
+
+        return RequestWorkDinnerInterval(
+            work = RequestInterval(
+                start = LocalTime.parse(workInterval.first(), formatter),
+                end = LocalTime.parse(workInterval.last(), formatter)
+            ),
+            dinner = RequestInterval(
+                start = LocalTime.parse(dinnerInterval.first(), formatter),
+                end = LocalTime.parse(dinnerInterval.last(), formatter)
+            )
+        )
+    }
 }
 
 @Component
@@ -185,18 +268,6 @@ open class AssignedBidRepository(
                 throw RuntimeException("Reference to id bid '$bidId' not found in table BID")
             }
             bid.get()
-        }
-    }
-
-    fun assignedEmployeeByBid(bidId: Int): List<Employee> {
-        val sql = """
-            SELECT ID_EMPLOYEE FROM ASSIGNED_BIDS
-            WHERE ID_BID = $bidId 
-        """.trimIndent()
-
-        return jdbcTemplate.query(sql) { row: ResultSet, _: Int ->
-            val employeeId = row.getInt("ID_BID")
-            employeeRepo.findById(employeeId).get()
         }
     }
 
@@ -228,7 +299,16 @@ open class AssignedBidRepository(
         jdbcTemplate.update(sql)
     }
 
-    fun assignedEmployeesByBid(bidId: Int): List<Int> {
+    fun removeEmployeeFromBid(bidId: Int, employeeId: Int) {
+        val sql = """
+            DELETE FROM ASSIGNED_BIDS
+            WHERE ID_BID = $bidId AND ID_EMPLOYEE = $employeeId 
+        """.trimIndent()
+
+        jdbcTemplate.update(sql)
+    }
+
+    fun assignedEmployeesIdByBid(bidId: Int): List<Int> {
         val sql = """
             SELECT ID_EMPLOYEE FROM ASSIGNED_BIDS
             WHERE ID_BID = $bidId
@@ -238,6 +318,19 @@ open class AssignedBidRepository(
             row.getInt("ID_EMPLOYEE")
         }
     }
+
+    fun assignedEmployeeByBid(bidId: Int): List<Employee> {
+        val sql = """
+            SELECT ID_EMPLOYEE FROM ASSIGNED_BIDS
+            WHERE ID_BID = $bidId 
+        """.trimIndent()
+
+        return jdbcTemplate.query(sql) { row: ResultSet, _: Int ->
+            val employeeId = row.getInt("ID_EMPLOYEE")
+            employeeRepo.findById(employeeId).get()
+        }
+    }
+
 
     fun assignNewBid(employees: List<Employee>, bid: Bid) {
         val sql = """

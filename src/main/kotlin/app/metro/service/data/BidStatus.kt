@@ -24,7 +24,7 @@ enum class BidStatus {
         private const val CANSEL_STR = "Отменена"
         private const val NOT_DISTRIBUTED_STR = "Не распределена"
 
-        fun convertFromString(from: String): BidStatus {
+        fun convertFromString(from: String?): BidStatus {
             return when (from) {
                 NEW_STR -> NEW
                 ACCEPTED_STR -> ACCEPTED

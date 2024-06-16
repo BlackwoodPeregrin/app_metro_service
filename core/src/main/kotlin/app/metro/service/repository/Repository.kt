@@ -75,7 +75,7 @@ open class EmployeeScheduleRepository(
             var idx = 1
             ps.setInt(idx++, employee.get().id)
             ps.setString(idx++, schedule[DayOfWeek.MONDAY]?.let { "${it.work.start}-${it.work.end}" })
-            ps.setString(idx++, schedule[DayOfWeek.THURSDAY]?.let { "${it.work.start}-${it.work.end}" })
+            ps.setString(idx++, schedule[DayOfWeek.TUESDAY]?.let { "${it.work.start}-${it.work.end}" })
             ps.setString(idx++, schedule[DayOfWeek.WEDNESDAY]?.let { "${it.work.start}-${it.work.end}" })
             ps.setString(idx++, schedule[DayOfWeek.THURSDAY]?.let { "${it.work.start}-${it.work.end}" })
             ps.setString(idx++, schedule[DayOfWeek.FRIDAY]?.let { "${it.work.start}-${it.work.end}" })
@@ -87,7 +87,7 @@ open class EmployeeScheduleRepository(
             var idx = 1
             ps.setInt(idx++, employee.get().id)
             ps.setString(idx++, schedule[DayOfWeek.MONDAY]?.let { "${it.dinner.start}-${it.dinner.end}" })
-            ps.setString(idx++, schedule[DayOfWeek.THURSDAY]?.let { "${it.dinner.start}-${it.dinner.end}" })
+            ps.setString(idx++, schedule[DayOfWeek.TUESDAY]?.let { "${it.dinner.start}-${it.dinner.end}" })
             ps.setString(idx++, schedule[DayOfWeek.WEDNESDAY]?.let { "${it.dinner.start}-${it.dinner.end}" })
             ps.setString(idx++, schedule[DayOfWeek.THURSDAY]?.let { "${it.dinner.start}-${it.dinner.end}" })
             ps.setString(idx++, schedule[DayOfWeek.FRIDAY]?.let { "${it.dinner.start}-${it.dinner.end}" })

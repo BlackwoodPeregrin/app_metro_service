@@ -40,6 +40,7 @@ open class BidController(
 
     @PostMapping("/accept")
     fun employeeAcceptBid(@RequestBody idBid: Int): Response {
+        logger.info("sish $idBid")
         return try {
             changeStatusBid(idBid, BidStatus.ACCEPTED)
             SuccessResponse()
@@ -453,8 +454,21 @@ open class BidController(
         }
     }
 
-    @PostMapping("/redistribute")
+    @PostMapping("/redistribute/uniform")
     fun redistributeBids(@RequestBody date: LocalDate): Response {
+        class Response(val unAssignedBids: List<Bid>): SuccessResponse()
+
+        return Response(redistributeBids(date, Algorithm.DENSE))
+    }
+
+    @PostMapping("/redistribute/dense")
+    fun redistributeBidsUniform(@RequestBody date: LocalDate): Response {
+        class Response(val unAssignedBids: List<Bid>): SuccessResponse()
+
+        return Response(redistributeBids(date, Algorithm.UNIFORM))
+    }
+
+    private fun redistributeBids(date: LocalDate, algorithm: Algorithm): List<Bid> {
         val bids = bidRepository.findAll()
             .filter { it.date == date }
             .sortedWith(compareBy { it.createdTime })
@@ -469,17 +483,17 @@ open class BidController(
 
         for (bid in bids) {
             val employeesTakeBid = mutableListOf<Employee>()
-            if(bidService.canAddNewBid(bid, employeesTakeBid, setOf(), Algorithm.UNIFORM)) {
+            if(bidService.canAddNewBid(bid, employeesTakeBid, setOf(), algorithm)) {
                 assignedBidRepo.assignNewBid(employeesTakeBid, bid)
             } else {
+                bidRepository.save(bid.apply { status = BidStatus.NOT_DISTRIBUTED.convertToString() })
                 unAssignedBids.add(bid)
             }
         }
 
-        class Response(val unAssignedBids: List<Bid>): SuccessResponse()
-
-        return Response(unAssignedBids)
+        return unAssignedBids
     }
+
 
     private fun changeStatusBid(idBid: Int, newStatus: BidStatus) {
         val bid = bidRepository.findById(idBid)

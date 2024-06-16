@@ -346,6 +346,22 @@ open class AssignedBidRepository(
             jdbcTemplate.update(query)
         }
     }
+
+
+    fun assignNewBidCache(employees: List<Employee>, bid: Bid) {
+        val sql = """
+            INSERT INTO ASSIGNED_BIDS_CACHE (ID_BID, ID_EMPLOYEE)
+            VALUES (?, ?)
+        """.trimIndent()
+
+        for (e in employees) {
+            var query = sql
+            query = query.replaceFirst("?", bid.id.toString())
+            query = query.replaceFirst("?", e.id.toString())
+
+            jdbcTemplate.update(query)
+        }
+    }
 }
 
 private fun DayOfWeek.asString(): String = when (this) {

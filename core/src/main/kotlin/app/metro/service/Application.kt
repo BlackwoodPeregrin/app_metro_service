@@ -49,7 +49,7 @@ class CustomizationBean(
 ) : WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> {
     override fun customize(factory: ConfigurableServletWebServerFactory) {
         factory.setSsl(Ssl().apply {
-            isEnabled = true
+            isEnabled = false
             keyStore = keystorePath
             keyStoreType = "PKCS12"
             keyStorePassword = keystorePassword

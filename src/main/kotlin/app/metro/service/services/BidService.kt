@@ -37,86 +37,11 @@ class BidService(
         private val logger = LoggerFactory.getLogger(this::class.java)
     }
 
-    fun canAddNewBId(newBid: Bid, employeesTakeBid: MutableList<Employee>, skipBids: Set<Int>): Boolean {
-        if (newBid.timePredict == null) {
-            newBid.timePredict = calculatePredictTime(newBid)
+    fun canAddNewBid(newBid: Bid, employeesTakeBid: MutableList<Employee>, skipBids: Set<Int>, algorithm: Algorithm): Boolean {
+        return when (algorithm) {
+            Algorithm.DENSE -> canAddNewBidDenseAlgorithm(newBid, employeesTakeBid, skipBids)
+            Algorithm.UNIFORM -> canAddNewBidUniformAlgorithm(newBid, employeesTakeBid, skipBids)
         }
-
-        val potentialTake = findPotentialEmployeesWithBids(newBid, skipBids)
-
-        logger.info("----- All who can take newBid with bids -----")
-        for (emp in potentialTake.values) {
-            logger.info("$emp")
-        }
-        logger.info("--------------------------------------------")
-
-        var needMales = newBid.countMale
-        var needFemale = newBid.countFemale
-
-        for (employees in potentialTake.values) {
-            for (employee in employees) {
-                when (EmployeeSex.convertFromString(employee.sex)) {
-                    EmployeeSex.MALE -> {
-                        if (needMales != 0) {
-                            employeesTakeBid.add(employee)
-                            --needMales
-                        }
-                    }
-                    EmployeeSex.FEMALE -> {
-                        if (needFemale != 0) {
-                            employeesTakeBid.add(employee)
-                            --needFemale
-                        }
-                    }
-                }
-
-                // проверяем хватает ли людей необходимых в заявке
-                if (needMales == 0 && needFemale == 0) {
-                    logger.info("All searched who need with already have bids")
-
-                    return true
-                }
-            }
-        }
-
-        logger.info("Try find employee without bids")
-
-        // в случае если не хватает, пытаемся назначить ее на сотрудников, которые еще не имеют заявок
-        for ((employee, interval) in scheduleRepo.getWhoCanTakeBid(newBid.date, newBid.time)) { // выкасить нахуй
-            val bids: List<Bid> = assignedBidRepo.assignedBidByEmployee(employee, newBid.date)
-                .filter { !skipBids.contains(it.id) }
-
-            if (bids.isNotEmpty()) {
-                continue
-            }
-
-            logger.info("potential employee $employee")
-
-            if (isPossibleTakeFromStartWork(interval, newBid)
-                && isPossibleTakeFromEndWork(interval, newBid)
-                && isNotCrossDinner(interval, newBid)) {
-                when (EmployeeSex.convertFromString(employee.sex)) {
-                    EmployeeSex.MALE -> {
-                        if (needMales != 0) {
-                            employeesTakeBid.add(employee)
-                            --needMales
-                        }
-                    }
-                    EmployeeSex.FEMALE -> {
-                        if (needFemale != 0) {
-                            employeesTakeBid.add(employee)
-                            --needFemale
-                        }
-                    }
-                }
-
-                if (needMales == 0 && needFemale == 0) {
-                    return true
-                }
-            }
-        }
-
-        return false
     }
 
     fun calculatePredictTime(newBid: Bid): LocalTime {
@@ -223,6 +148,169 @@ class BidService(
         return false
     }
 
+    private fun canAddNewBidUniformAlgorithm(newBid: Bid, employeesTakeBid: MutableList<Employee>, skipBids: Set<Int>): Boolean {
+        if (newBid.timePredict == null) {
+            newBid.timePredict = calculatePredictTime(newBid)
+        }
+
+        logger.info("Try find employee without bids")
+
+        var needMales = newBid.countMale
+        var needFemale = newBid.countFemale
+
+        // в случае если не хватает, пытаемся назначить ее на сотрудников, которые еще не имеют заявок
+        for ((employee, interval) in scheduleRepo.getWhoCanTakeBid(newBid.date, newBid.time)) { // выкасить нахуй
+            val bids: List<Bid> = assignedBidRepo.assignedBidByEmployee(employee, newBid.date)
+                .filter { !skipBids.contains(it.id) }
+
+            if (bids.isNotEmpty()) {
+                continue
+            }
+
+            logger.info("potential employee $employee")
+
+            if (isPossibleTakeFromStartWork(interval, newBid)
+                && isPossibleTakeFromEndWork(interval, newBid)
+                && isNotCrossDinner(interval, newBid)) {
+                when (EmployeeSex.convertFromString(employee.sex)) {
+                    EmployeeSex.MALE -> {
+                        if (needMales != 0) {
+                            employeesTakeBid.add(employee)
+                            --needMales
+                        }
+                    }
+                    EmployeeSex.FEMALE -> {
+                        if (needFemale != 0) {
+                            employeesTakeBid.add(employee)
+                            --needFemale
+                        }
+                    }
+                }
+
+                if (needMales == 0 && needFemale == 0) {
+                    return true
+                }
+            }
+        }
+
+        val potentialTake = findPotentialEmployeesWithBids(newBid, skipBids)
+
+        logger.info("----- All who can take newBid with bids -----")
+        for (emp in potentialTake.values) {
+            logger.info("$emp")
+        }
+        logger.info("--------------------------------------------")
+
+        for (employees in potentialTake.values) {
+            for (employee in employees) {
+                when (EmployeeSex.convertFromString(employee.sex)) {
+                    EmployeeSex.MALE -> {
+                        if (needMales != 0) {
+                            employeesTakeBid.add(employee)
+                            --needMales
+                        }
+                    }
+                    EmployeeSex.FEMALE -> {
+                        if (needFemale != 0) {
+                            employeesTakeBid.add(employee)
+                            --needFemale
+                        }
+                    }
+                }
+
+                // проверяем хватает ли людей необходимых в заявке
+                if (needMales == 0 && needFemale == 0) {
+                    logger.info("All searched who need with already have bids")
+
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
+    private fun canAddNewBidDenseAlgorithm(newBid: Bid, employeesTakeBid: MutableList<Employee>, skipBids: Set<Int>): Boolean {
+        if (newBid.timePredict == null) {
+            newBid.timePredict = calculatePredictTime(newBid)
+        }
+
+        val potentialTake = findPotentialEmployeesWithBids(newBid, skipBids)
+
+        logger.info("----- All who can take newBid with bids -----")
+        for (emp in potentialTake.values) {
+            logger.info("$emp")
+        }
+        logger.info("--------------------------------------------")
+
+        var needMales = newBid.countMale
+        var needFemale = newBid.countFemale
+
+        for (employees in potentialTake.values) {
+            for (employee in employees) {
+                when (EmployeeSex.convertFromString(employee.sex)) {
+                    EmployeeSex.MALE -> {
+                        if (needMales != 0) {
+                            employeesTakeBid.add(employee)
+                            --needMales
+                        }
+                    }
+                    EmployeeSex.FEMALE -> {
+                        if (needFemale != 0) {
+                            employeesTakeBid.add(employee)
+                            --needFemale
+                        }
+                    }
+                }
+
+                // проверяем хватает ли людей необходимых в заявке
+                if (needMales == 0 && needFemale == 0) {
+                    logger.info("All searched who need with already have bids")
+
+                    return true
+                }
+            }
+        }
+
+        logger.info("Try find employee without bids")
+
+        // в случае если не хватает, пытаемся назначить ее на сотрудников, которые еще не имеют заявок
+        for ((employee, interval) in scheduleRepo.getWhoCanTakeBid(newBid.date, newBid.time)) {
+            val bids: List<Bid> = assignedBidRepo.assignedBidByEmployee(employee, newBid.date)
+                .filter { !skipBids.contains(it.id) }
+
+            if (bids.isNotEmpty()) {
+                continue
+            }
+
+            logger.info("potential employee $employee")
+
+            if (isPossibleTakeFromStartWork(interval, newBid)
+                && isPossibleTakeFromEndWork(interval, newBid)
+                && isNotCrossDinner(interval, newBid)) {
+                when (EmployeeSex.convertFromString(employee.sex)) {
+                    EmployeeSex.MALE -> {
+                        if (needMales != 0) {
+                            employeesTakeBid.add(employee)
+                            --needMales
+                        }
+                    }
+                    EmployeeSex.FEMALE -> {
+                        if (needFemale != 0) {
+                            employeesTakeBid.add(employee)
+                            --needFemale
+                        }
+                    }
+                }
+
+                if (needMales == 0 && needFemale == 0) {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
 
     private fun findPotentialEmployeesWithBids(newBid: Bid, skipBids: Set<Int>): Map<Int, MutableList<Employee>> {
         val potentialTake = sortedMapOf<Int, MutableList<Employee>>()
@@ -275,7 +363,7 @@ class BidService(
 
         return potentialTake
     }
-    
+
     private fun isPossibleTakeFromStartWork(schedule: EmployeeSchedule, newBid: Bid): Boolean {
         logger.info("isPossibleTakeFromStartWork")
 

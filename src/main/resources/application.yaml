@@ -18,3 +18,10 @@ graph:
 
 time_allowance_category: src/main/resources/configs/statistic.json
 station: src/main/resources/configs/station.json
+
+uri:
+  registration: http://10.10.10.7:8080/
+
+keystore:
+    path: src/main/resources/configs/keystore.p12
+    password: metro

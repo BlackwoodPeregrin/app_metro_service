@@ -7,7 +7,7 @@ COPY build.gradle.kts settings.gradle.kts ./
 
 COPY src ./src
 
-RUN gradle build --no-daemon
+RUN gradle build
 
 # stage start
 FROM openjdk:17-jdk-slim

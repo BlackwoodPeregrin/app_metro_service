@@ -6,12 +6,14 @@ import { refreshAuth } from '../services/FileBrowserService';
 
 interface AuthContextType {
     isAuth: boolean;
+    id: string | null;
     login: () => void;
     logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
     isAuth: false,
+    id: null,
     login: () => {},
     logout: () => {}
 });
@@ -40,18 +42,31 @@ const checkAuth = () => {
         if (!ok) {
             refreshAuth(refresh);
         }
+        return authData;
     }
-    return ok;
+    return false;
 }
 
 export const AuthProvider: React.FC<Props> = (props: Props) => {
-    const [isAuth, setIsAuth] = useState(checkAuth());
+    const employeeAuth = checkAuth();
+    let ok = false;
+    let id1 = null;
+    if(employeeAuth) {
+        ok = true;
+        id1 = employeeAuth.id
+    }
+    const [isAuth, setIsAuth] = useState(ok);
+    const [id, setId] = useState<string | null>(id1);
+    // if (employeeAuth) {
+    //     setIsAuth(true);
+    //     // setId(employeeAuth.id)
+    // }
 
     const login = () => setIsAuth(true);
     const logout = () => setIsAuth(false);
 
     return (
-        <AuthContext.Provider value={{ isAuth, login, logout }}>
+        <AuthContext.Provider value={{ isAuth, id, login, logout }}>
             {props.children}
         </AuthContext.Provider>
     );

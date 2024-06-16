@@ -35,4 +35,24 @@ export const HomePageWrapper = styled.div`
     .day-name {
         margin-right: 5px;
     }
+    .card-day {
+        background: none;
+    }
+
+    .sikOff {
+        background: none;
+    }
+
+    .working-day {
+        background: linear-gradient(45deg, transparent 25%, rgba(0, 128, 0, 0.1) 25%, rgba(0, 128, 0, 0.1) 50%, transparent 50%, transparent 75%, rgba(0, 128, 0, 0.1) 75%, rgba(0, 128, 0, 0.1));
+        background-size: 10px 10px;
+    }
+
+    .sikOn {
+        background: linear-gradient(45deg, transparent 25%, rgba(255, 0, 0, 0.1) 25%, rgba(255, 0, 0, 0.1) 50%, transparent 50%, transparent 75%, rgba(255, 0, 0, 0.1) 75%, rgba(255, 0, 0, 0.1));
+        background-size: 10px 10px;
+    }
+
+    
+
 `

@@ -1,3 +1,5 @@
+import {workDay} from '../services/FileBrowserService';
+
 export interface IWaitingList {
     "id": string,
     "id_pas": string,
@@ -96,6 +98,27 @@ export const WEEKDAYS1 = {
     '6': 'Сб',
     '7': 'Вс'
 };
+export const WEEKDAYS2 = [
+    {1: 'Пн'},
+    {2: 'Вт'},
+    {3: 'Ср'},
+    {4: 'Чт'},
+    {5: 'Пт'},
+    {6: 'Сб'},
+    {7: 'Вс'}
+];
+export interface IDaysOfWeek {
+    key: workDay, name: string
+}
+export const daysOfWeek: IDaysOfWeek[] = [
+    { key: '1' as workDay, name: 'Понедельник' },
+    { key: '2' as workDay, name: 'Вторник' },
+    { key: '3' as workDay, name: 'Среда' },
+    { key: '4' as workDay, name: 'Четверг' },
+    { key: '5' as workDay, name: 'Пятница' },
+    { key: '6' as workDay, name: 'Суббота' },
+    { key: '7' as workDay, name: 'Воскресенье' },
+];
 export const PAGE_SIZE = 12; // Количество сотрудников и пассажиров на одной странице
 
 export const waitingList : IWaitingList[] = [

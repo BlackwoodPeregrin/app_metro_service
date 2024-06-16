@@ -1,6 +1,20 @@
 import React, {useEffect, useState} from 'react';
 
-import {DatePicker, Button, Form, Modal, Tabs, AutoComplete, TimePicker, Select, Input, message, Badge} from 'antd';
+import {
+    DatePicker,
+    Button,
+    Form,
+    Modal,
+    Tabs,
+    AutoComplete,
+    TimePicker,
+    Select,
+    Input,
+    message,
+    Badge,
+    List,
+    Empty
+} from 'antd';
 import {PlusOutlined, SearchOutlined, LeftOutlined} from '@ant-design/icons';
 import { parse, addMinutes, format } from 'date-fns';
 import dayjs from 'dayjs';
@@ -12,7 +26,14 @@ import {WarningApplicationCard} from "./WarningApplicationCard/WarningApplicatio
 import styled from 'styled-components';
 
 import {
-    IListOfPassengers, IPassenger, requestListOfPassengers,
+    IListOfBids, IListOfEmployees,
+    IListOfPassengers,
+    requestListOfBid,
+    requestListOfEmployee,
+    requestListOfPassengers,
+    calculateNewBid,
+    IAddBidProps,
+    addNewBid, IListFilterBid, findBid, IListOfBidsResult
 } from "../../services/FileBrowserService";
 import {nameStations} from "../../utils/constants";
 import SidebarMenu from "../SidebarMenu/SidebarMenu";
@@ -77,36 +98,36 @@ interface Application {
     date: string; // добавляем поле даты
 }
 
-const testWaitingList: ITestWaitingList[] = waitingList.map((item, index) => {
-    const employeeIndex = index % employeeList.length; // Циклический индекс
-    return {
-        ...item,
-        id_employee: employeeList[employeeIndex].ID
-    };
-});
+// const testWaitingList: ITestWaitingList[] = waitingList.map((item, index) => {
+//     const employeeIndex = index % employeeList.length; // Циклический индекс
+//     return {
+//         ...item,
+//         id_employee: employeeList[employeeIndex].ID
+//     };
+// });
 
-const testStatusWaitingList: ITestWaitingList[] = testWaitingList.map((item, index) => {
-    let statusWait = '';
-    if (index % 7 === 0) {
-        statusWait = 'latePassenger'
-    } else if (index % 6 === 0) {
-        statusWait = 'lateEmployee'
-    } else if (index % 5 === 0) {
-        statusWait = 'finish'
-    } else if (index % 4 === 0) {
-        statusWait = 'start'
-    } else if (index % 3 === 0) {
-        statusWait = 'wait_passenger'
-    } else if (index % 2 === 0) {
-        statusWait = 'on_the_way'
-    } else {
-        statusWait = 'accept'
-    }
-    return {
-        ...item,
-        status: statusWait,
-    };
-})
+// const testStatusWaitingList: ITestWaitingList[] = testWaitingList.map((item, index) => {
+//     let statusWait = '';
+//     if (index % 7 === 0) {
+//         statusWait = 'latePassenger'
+//     } else if (index % 6 === 0) {
+//         statusWait = 'lateEmployee'
+//     } else if (index % 5 === 0) {
+//         statusWait = 'finish'
+//     } else if (index % 4 === 0) {
+//         statusWait = 'start'
+//     } else if (index % 3 === 0) {
+//         statusWait = 'wait_passenger'
+//     } else if (index % 2 === 0) {
+//         statusWait = 'on_the_way'
+//     } else {
+//         statusWait = 'accept'
+//     }
+//     return {
+//         ...item,
+//         status: statusWait,
+//     };
+// })
 
 // const list: IListOfPassengers[] = [
 //     {"id":1,"lastName":"Дориан","firstName":"Джон","surName":"Грэй","category":"ИЗТ","phone":"+7-999-808-15-44"},
@@ -114,22 +135,56 @@ const testStatusWaitingList: ITestWaitingList[] = testWaitingList.map((item, ind
 // ] // тестовый список пассажиров
 
 const OperatorPage: React.FC = () => {
+    const [listOfBids, setListOfBids] = useState<IListOfBids[]>([]);
+    const [listOfEmployees, setListOfEmployees] = useState<IListOfEmployees[]>([]);
     const [passengerList, setPassengerList] = useState<IListOfPassengers[]>([]);
     const [optionsSearchStation, setOptionsSearchStation] = useState<any[]>([]);
     const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
-    const [searchApplicationResults, setSearchApplicationResults] = useState<ITestWaitingList[]>(testStatusWaitingList.slice(0, 10));
+    const [searchApplicationResults, setSearchApplicationResults] = useState<IListOfBidsResult[]>([]);
     const [optionSearchEmployee, setOptionSearchEmployee] = useState<any[]>([]);
     const [optionSearchPassenger, setOptionSearchPassenger] = useState<any[]>([]);
     const [isApplicationCreateModalVisible, setIsApplicationCreateModalVisible] = useState(false);
     const [selectedDate, setSelectedDate] = useState<string>('');
-    const [requestOfCreateAppParameter, setRequestOfCreateAppParameter] = useState<ICreateNewApplication | null>(null);
+    const [timePredict, setTimePredict] = useState<string>('');
+    const [requestOfCalculateAppParameter, setRequestOfCalculateAppParameter] = useState<IAddBidProps | null>(null);
     const [isCalculationAppCompleted, setIsCalculationAppCompleted] = useState<boolean>(false);
     const [statusOfCalculationAppCompleted, setStatusOfCalculationAppCompleted] = useState<boolean | null>(null);
     const [selectedAddedTime, setSelectedAddedTime] = useState<number | null>(null);
     const [currentTime, setCurrentTime] = useState(format(new Date(), 'HH:mm'));
-    const [potentialProblemsList, setPotentialProblemsList] = useState<ITestWaitingList[]>([]);
+    const [potentialProblemsList, setPotentialProblemsList] = useState<IListOfBids[]>([]);
     const [warningAoolicationIsVisible, setWarningAoolicationIsVisible] = useState<boolean>(false);
+    const [requestOfCreateAppParameter, setRequestOfCreateAppParameter] = useState<IAddBidProps | null>(null);
+    const [alternativeApplicationTimesIsVisible, setAlternativeApplicationTimesIsVisible] = useState<boolean>(false);
+    const [alternativeApplicationTimesList, setAlternativeApplicationTimesList] = useState<string[]>([]);
+
+    const getListOfEmployees = () => {
+        requestListOfEmployee()
+            .then(response => {
+                setListOfEmployees(response.employee);
+            })
+            .catch(() => {
+                message.error('Ошибка при получении списка работников.');
+            })
+    }
+
+    const calculateTimeBid = (props: IAddBidProps) => {
+        calculateNewBid(props)
+            .then(respons => {
+                console.log(respons)
+                setTimePredict(respons.timePredict.split(':').slice(0,2).join(':'))
+            })
+    }
+
+    // const getListOfPassengers = () => {
+    //     requestListOfPassengers()
+    //         .then(response => {
+    //             setPassengerList(response.passengers)
+    //         })
+    //         .catch(error => {
+    //             message.error('Ошибка при получении списка пассажиров.');
+    //         })
+    // }
 
     useEffect(() => {
         const timerId = setInterval(() => {
@@ -139,6 +194,7 @@ const OperatorPage: React.FC = () => {
         // Очищаем таймер при размонтировании компонента
         return () => clearInterval(timerId);
     }, []);
+
 
     const getListOfPassengers = async () => {
         requestListOfPassengers()
@@ -151,7 +207,12 @@ const OperatorPage: React.FC = () => {
     }
 
     useEffect(() => {
-        getListOfPassengers()
+        getListOfPassengers();
+        getListOfEmployees();
+        requestListOfBid().then(response => {
+            setListOfBids(response.bids)
+            console.log(response.bids.filter(time=> time.bid.status !== 'Заявка закончена'))
+        })
     }, [])
 
 
@@ -172,7 +233,6 @@ const OperatorPage: React.FC = () => {
         return formattedTime1 < formattedTime2
     }
 
-    console.log(handleTimeComparison(testStatusWaitingList[0].datetime, currentTime));
 
     // const [timePredictOfapplication, setTimePredictOfapplication] = useState<string | null>(null); // параметры заявки
     // const [filteredPassengerList, setFilteredPassengerList] = useState<IListOfPassengers[]>([]);
@@ -244,7 +304,7 @@ const OperatorPage: React.FC = () => {
 
     const handleCreateNewApplication = (values: any) => {
         console.log(values);
-        const requestCreationParameters: ICreateNewApplication = {
+        const requestCreationParameters: IAddBidProps = {
             passengerId: passengerList.find(passenger => passenger.lastName === values.passenger.split(' ')[0])?.id!,
             date: format(values.date.$d, 'yyyy-MM-dd'),
             time: format(values.time.$d, 'HH:mm'),
@@ -253,27 +313,41 @@ const OperatorPage: React.FC = () => {
             countMale: values.INSP_SEX_M,
             countFemale: values.INSP_SEX_F,
         }
-        setRequestOfCreateAppParameter(requestCreationParameters);
+        setRequestOfCalculateAppParameter(requestCreationParameters);
         console.log(requestCreationParameters);
+        calculateTimeBid(requestCreationParameters);
         // отправляем запрос на расчет заявки
         // если запрос обработан, то
-        setIsCalculationAppCompleted(true);
-        setStatusOfCalculationAppCompleted(true) // статус проверки возможно ли распределить
+        // setIsCalculationAppCompleted(true);
+        // setStatusOfCalculationAppCompleted(true) // статус проверки возможно ли распределить
         // если статус тру то присваеваем предикт
-        setRequestOfCreateAppParameter({...requestCreationParameters, timePredict: '01:00'}) // сюда нужно добавить TIME_PREDICT из респонса
+        setRequestOfCreateAppParameter({...requestCreationParameters, timePredict: timePredict}) // сюда нужно добавить TIME_PREDICT из респонса
 
 
     }
 
     const handleRegistrationRequest = () => {
-        const timeString = requestOfCreateAppParameter?.timePredict || '';
-        const parsedTime = parse(timeString, 'HH:mm', new Date());
-        const newTime = addMinutes(parsedTime, selectedAddedTime || 0);
-        const formattedTime = format(newTime, 'HH:mm');
-        const newRequestOfCreateAppParameter = {...requestOfCreateAppParameter, timePredict: formattedTime}
-        console.log(newRequestOfCreateAppParameter);
+
         // отправляем запрос на регистрацию
         setIsApplicationCreateModalVisible(false);
+        if(requestOfCreateAppParameter) {
+            const timeString = timePredict || '';
+            const parsedTime = parse(timeString, 'HH:mm', new Date());
+            const newTime = addMinutes(parsedTime, selectedAddedTime || 0);
+            const formattedTime = format(newTime, 'HH:mm');
+            const newRequestOfCreateAppParameter: IAddBidProps = {...requestOfCalculateAppParameter!, timePredict: formattedTime}
+            console.log(newRequestOfCreateAppParameter);
+            addNewBid(newRequestOfCreateAppParameter)
+                .then(response => {
+                    if(response.added) {
+                        message.success('Заявка успешно зарегистрирована')
+                    } else {
+                        setAlternativeApplicationTimesList(response.freeSlots || [])
+                        setAlternativeApplicationTimesIsVisible(true)
+                    }
+                })
+        }
+
     }
 
     const handleOpenSearchModal = () => {
@@ -288,7 +362,7 @@ const OperatorPage: React.FC = () => {
             return;
         } else {
             console.log('Search values:', values);
-            const searchParameterApplication: ISearchParameterApplication = {};
+            const searchParameterApplication: IListFilterBid = {};
 
             if (values.id) searchParameterApplication.id = values.id;
 
@@ -303,12 +377,12 @@ const OperatorPage: React.FC = () => {
 
             if (values.station1) {
                 const station1 = nameStations.find(station => station.name_station.toLowerCase() === values.station1.toLowerCase());
-                if (station1) searchParameterApplication.id_st1 = station1.id;
+                if (station1) searchParameterApplication.id_st1 = +station1.id;
             }
 
             if (values.station2) {
                 const station2 = nameStations.find(station => station.name_station.toLowerCase() === values.station2.toLowerCase());
-                if (station2) searchParameterApplication.id_st2 = station2.id;
+                if (station2) searchParameterApplication.id_st2 = +station2.id;
             }
 
             if (values.status) searchParameterApplication.status = values.status;
@@ -322,15 +396,21 @@ const OperatorPage: React.FC = () => {
                 if (empSurName) searchParameterApplication.employee_surName = empSurName;
             }
 
-            if (values.startDate) searchParameterApplication.startDate = format(values.startDate.$d, 'dd.MM.yyyy');
+            if (values.startDate) searchParameterApplication.startDate = format(values.startDate.$d, 'yyyy-MM-dd');
 
-            if (values.endDate) searchParameterApplication.endDate = format(values.endDate.$d, 'dd.MM.yyyy');
+            if (values.endDate) searchParameterApplication.endDate = format(values.endDate.$d, 'yyyy-MM-dd');
 
-            if (values.time) searchParameterApplication.time = format(values.time.$d, 'hh.mm');
+            if (values.time) searchParameterApplication.startTime = format(values.time.$d, 'hh.mm');
 
 
             console.log(searchParameterApplication);
             setIsSearchModalVisible(false);
+            findBid(searchParameterApplication)
+                .then(response => {
+                    setSearchApplicationResults(response.bids);
+                    setIsSearching(true);
+                    console.log(response);
+                })
             // здесь нужен запрос на бэк с параметрами поиска
             // setSearchApplicationResults(searchParameterApplication) полученный результат добавляем в стэйт
             // setIsSearching(true) открываем страницу с результатами
@@ -341,17 +421,22 @@ const OperatorPage: React.FC = () => {
         event.stopPropagation();
         console.log(`Badge clicked: ${key}`);
         setPotentialProblemsList(
-            key === 'active' ? testStatusWaitingList.filter(time=> time.status !== 'finish' && handleTimeComparison(time.datetime, currentTime)):
-                testStatusWaitingList.filter(time=> time.status === key && handleTimeComparison(time.datetime, currentTime))
+            key === 'active' ? listOfBids.filter(time=> time.bid.status !== 'Заявка закончена' && handleTimeComparison(time.bid.time, currentTime)):
+                listOfBids.filter(time=> time.bid.status === key && handleTimeComparison(time.bid.time, currentTime))
         )
         setWarningAoolicationIsVisible(true)
         // Здесь можно добавить дополнительную логику обработки клика
     };
 
+    console.log(listOfBids.filter(time=> time.bid.status !== 'Заявка закончена' && handleTimeComparison(time.bid.time, currentTime)))
+
     return (
         <OperatorPageWrapper>
             <div className="header">
-                {warningAoolicationIsVisible ? <LeftOutlined onClick={() => setWarningAoolicationIsVisible(false)} /> : <SidebarMenu/>}
+                {warningAoolicationIsVisible || isSearching ? <LeftOutlined onClick={() => {
+                    setWarningAoolicationIsVisible(false);
+                    setIsSearching(false)
+                }} /> : <SidebarMenu/>}
 
                 <div>{currentTime}</div>
                 <div>Регистрация рабочего дня сотрудника</div>
@@ -409,10 +494,10 @@ const OperatorPage: React.FC = () => {
                             placeholder="Введите станцию завершения маршрутаа"
                         />
                     </Form.Item>
-                    <Form.Item name="date" label="Дата"
-                               rules={[{required: true, message: 'Пожалуйста, выберите дату'}]}>
-                        <DatePicker/>
-                    </Form.Item>
+                    {/*<Form.Item name="date" label="Дата"*/}
+                    {/*           rules={[{required: true, message: 'Пожалуйста, выберите дату'}]}>*/}
+                    {/*    <DatePicker/>*/}
+                    {/*</Form.Item>*/}
                     <Form.Item name="date" label="Дата"
                                rules={[{required: true, message: 'Пожалуйста, выберите дату'}]}>
                         <DatePicker/>
@@ -459,30 +544,22 @@ const OperatorPage: React.FC = () => {
                     ) : null}
 
                 </ApplicationCreateForm>
-                {isCalculationAppCompleted ? (
+                {timePredict ? (
                     <div>
-                        {statusOfCalculationAppCompleted ? (
-                            <>
-                                <div>Рвсчетное время на выполнение
-                                    заявки {requestOfCreateAppParameter?.timePredict}</div>
-                                <div>Добавить дополнительное время?</div>
-                                <Select
-                                    placeholder="Выберите время"
-                                    onChange={handleAddedTimeChange}
-                                    value={selectedAddedTime}
-                                >
-                                    {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].map(num => (
-                                        <Select.Option key={num} value={num}>
-                                            {num} мин.
-                                        </Select.Option>
-                                    ))}
-                                </Select>
-                            </>
-                        ) : (
-                            <div>
-                                Выберите другое время
-                            </div>
-                        )}
+                        <div>Рвсчетное время на выполнение
+                            заявки {timePredict}</div>
+                        <div>Добавить дополнительное время?</div>
+                        <Select
+                            placeholder="Выберите время"
+                            onChange={handleAddedTimeChange}
+                            value={selectedAddedTime}
+                        >
+                            {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].map(num => (
+                                <Select.Option key={num} value={num}>
+                                    {num} мин.
+                                </Select.Option>
+                            ))}
+                        </Select>
 
                         <Button
                             type="primary"
@@ -577,12 +654,41 @@ const OperatorPage: React.FC = () => {
                     </Form.Item>
                 </Form>
             </Modal>
+            <Modal
+                title={`${alternativeApplicationTimesList.length ? 'Альтернативное время заявок' : 'Невозможно зарегистрировать заявку на указанную дату'}`}
+                open={alternativeApplicationTimesIsVisible}
+                onCancel={()=>setAlternativeApplicationTimesIsVisible(false)}
+                footer={[
+                    <Button key="close" onClick={()=>setAlternativeApplicationTimesIsVisible(false)}>
+                        Закрыть
+                    </Button>
+                ]}
+            >
+                {alternativeApplicationTimesList.length ? (
+                    <List
+                        size="small"
+                        bordered
+                        dataSource={alternativeApplicationTimesList}
+                        renderItem={item => (
+                            <List.Item>
+                                ID задачи: {item}
+                            </List.Item>
+                        )}
+                    />
+                ) : (
+                    <Empty/>
+                )}
+
+            </Modal>
 
             {isSearching ? (
                 <div className="search-results">
                     <h2>Результаты поиска</h2>
-                    <Button onClick={() => setIsSearching(false)}>Назад</Button>
-                    <ApplicationCard application={searchApplicationResults}/>
+                    {/*<Button onClick={() => setIsSearching(false)}>Назад</Button>*/}
+                    <ApplicationCard
+                        application={searchApplicationResults}
+                        passengerList={passengerList}
+                    />
                 </div>
             ) : (
                 <div className="operatorPage-content">
@@ -600,7 +706,7 @@ const OperatorPage: React.FC = () => {
                                     <span onClick={(event) => handleBadgeClick('active', event)}>
                                         <Badge
                                             count={
-                                                testStatusWaitingList.filter(time=> time.status !== 'finish' && handleTimeComparison(time.datetime, currentTime)).length
+                                                listOfBids.filter(time=> time.bid.status !== 'Заявка закончена' && handleTimeComparison(time.bid.time, currentTime)).length
                                             }
                                         />
                                     </span>
@@ -608,34 +714,40 @@ const OperatorPage: React.FC = () => {
                                 }
                                 key="1"
                             >
-                                <ApplicationTabs timeSlots={timeSlots} data={testStatusWaitingList.filter(wait => wait.status !== 'finish')} passengerList={passengerList}  />
+                                <ApplicationTabs
+                                    timeSlots={timeSlots}
+                                    data={listOfBids.filter(wait => wait.bid.status !== 'Заявка закончена')}
+                                    passengerList={passengerList}
+                                    listOfEmployees={listOfEmployees}
+                                />
                             </TabPane>
                             <TabPane
                                 tab={
                                     <span>
                                     Принятые заявки
-                                    <span onClick={(event) => handleBadgeClick('accept', event)}>
+                                    <span onClick={(event) => handleBadgeClick('Принята', event)}>
                                         <Badge count={
-                                            testStatusWaitingList.filter(time=> time.status === 'accept' && handleTimeComparison(time.datetime, currentTime)).length
+                                            listOfBids.filter(time=> time.bid.status === 'Принята' && handleTimeComparison(time.bid.time, currentTime)).length
                                         }
                                         />
                                     </span>
                                 </span>
                                 }
                                 key="2">
-                                <ApplicationTabs timeSlots={timeSlots}
-                                                 data={testStatusWaitingList.filter(wait => wait.status === 'accept')}
-                                                 passengerList={passengerList}
-
+                                <ApplicationTabs
+                                    timeSlots={timeSlots}
+                                    data={listOfBids.filter(wait => wait.bid.status === 'Принята')}
+                                    passengerList={passengerList}
+                                    listOfEmployees={listOfEmployees}
                                 />
                             </TabPane>
                             <TabPane
                                 tab={
                                     <span>
                                     Инспектор выехал
-                                    <span onClick={(event) => handleBadgeClick('on_the_way', event)}>
+                                    <span onClick={(event) => handleBadgeClick('Инспектор выехал', event)}>
                                         <Badge count={
-                                            testStatusWaitingList.filter(time=> time.status === 'on_the_way' && handleTimeComparison(time.datetime, currentTime)).length
+                                            listOfBids.filter(time=> time.bid.status === 'Инспектор выехал' && handleTimeComparison(time.bid.time, currentTime)).length
                                         }
                                         />
                                     </span>
@@ -643,9 +755,11 @@ const OperatorPage: React.FC = () => {
                                 }
                                 key="3"
                             >
-                                <ApplicationTabs timeSlots={timeSlots}
-                                                 data={testStatusWaitingList.filter(wait => wait.status === 'on_the_way')}
-                                                 passengerList={passengerList}
+                                <ApplicationTabs
+                                    timeSlots={timeSlots}
+                                    data={listOfBids.filter(wait => wait.bid.status === 'Инспектор выехал')}
+                                    passengerList={passengerList}
+                                    listOfEmployees={listOfEmployees}
 
                                 />
                             </TabPane>
@@ -653,9 +767,9 @@ const OperatorPage: React.FC = () => {
                                 tab={
                                     <span>
                                     Инспектор опаздывает
-                                    <span onClick={(event) => handleBadgeClick('lateEmployee', event)}>
+                                    <span onClick={(event) => handleBadgeClick('Инспектор опаздывает', event)}>
                                         <Badge count={
-                                            testStatusWaitingList.filter(time=> time.status === 'lateEmployee' && handleTimeComparison(time.datetime, currentTime)).length
+                                            listOfBids.filter(time=> time.bid.status === 'Инспектор опаздывает' && handleTimeComparison(time.bid.time, currentTime)).length
                                         }
                                         />
                                     </span>
@@ -664,8 +778,9 @@ const OperatorPage: React.FC = () => {
                                 key="4"
                             >
                                 <ApplicationTabs timeSlots={timeSlots}
-                                                 data={testStatusWaitingList.filter(wait => wait.status === 'lateEmployee')}
+                                                 data={listOfBids.filter(wait => wait.bid.status === 'Инспектор опаздывает')}
                                                  passengerList={passengerList}
+                                                 listOfEmployees={listOfEmployees}
 
                                 />
                             </TabPane>
@@ -673,9 +788,9 @@ const OperatorPage: React.FC = () => {
                                 tab={
                                     <span>
                                     Инспектор на месте
-                                    <span onClick={(event) => handleBadgeClick('wait_passenger', event)}>
+                                    <span onClick={(event) => handleBadgeClick('Инспектор на месте', event)}>
                                             <Badge count={
-                                                testStatusWaitingList.filter(time=> time.status === 'wait_passenger' && handleTimeComparison(time.datetime, currentTime)).length
+                                                listOfBids.filter(time=> time.bid.status === 'Инспектор на месте' && handleTimeComparison(time.bid.time, currentTime)).length
                                             }
                                             />
                                     </span>
@@ -684,8 +799,9 @@ const OperatorPage: React.FC = () => {
                                 key="5"
                             >
                                 <ApplicationTabs timeSlots={timeSlots}
-                                                 data={testStatusWaitingList.filter(wait => wait.status === 'wait_passenger')}
+                                                 data={listOfBids.filter(wait => wait.bid.status === 'Инспектор на месте')}
                                                  passengerList={passengerList}
+                                                 listOfEmployees={listOfEmployees}
 
                                 />
                             </TabPane>
@@ -693,9 +809,9 @@ const OperatorPage: React.FC = () => {
                                 tab={
                                     <span>
                                     Пассажир опаздывает
-                                    <span onClick={(event) => handleBadgeClick('latePassenger', event)}>
+                                    <span onClick={(event) => handleBadgeClick('Пассажир опаздывает', event)}>
                                         <Badge count={
-                                            testStatusWaitingList.filter(time=> time.status === 'latePassenger' && handleTimeComparison(time.datetime, currentTime)).length
+                                            listOfBids.filter(time=> time.bid.status === 'Пассажир опаздывает' && handleTimeComparison(time.bid.time, currentTime)).length
                                         }
                                         />
                                     </span>
@@ -704,8 +820,9 @@ const OperatorPage: React.FC = () => {
                                 key="6"
                             >
                                 <ApplicationTabs timeSlots={timeSlots}
-                                                 data={testStatusWaitingList.filter(wait => wait.status === 'latePassenger')}
+                                                 data={listOfBids.filter(wait => wait.bid.status === 'Пассажир опаздывает')}
                                                  passengerList={passengerList}
+                                                 listOfEmployees={listOfEmployees}
 
                                 />
                             </TabPane>
@@ -713,15 +830,17 @@ const OperatorPage: React.FC = () => {
                                 tab="В процессе"
                                 key="7">
                                 <ApplicationTabs timeSlots={timeSlots}
-                                                 data={testStatusWaitingList.filter(wait => wait.status === 'start')}
+                                                 data={listOfBids.filter(wait => wait.bid.status === 'Поездка')}
                                                  passengerList={passengerList}
+                                                 listOfEmployees={listOfEmployees}
 
                                 />
                             </TabPane>
                             <TabPane tab="Завершенные заявки" key="8">
                                 <ApplicationTabs timeSlots={timeSlots}
-                                                 data={testStatusWaitingList.filter(wait => wait.status === 'finish')}
+                                                 data={listOfBids.filter(wait => wait.bid.status === 'Заявка закончена')}
                                                  passengerList={passengerList}
+                                                 listOfEmployees={listOfEmployees}
 
                                 />
                             </TabPane>

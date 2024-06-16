@@ -1,14 +1,15 @@
-import React, {useState} from "react";
-import {Button, Card, Form, Input, Modal, Select} from "antd";
+import React, {useEffect, useState} from "react";
+import {Button, Card, Form, Input, message, Modal, Select} from "antd";
 import {LIST_OF_POSITION, SPOT_LIST, IEmployeeList, IEditEmployee, WEEKDAYS, SelectedDayValueKey} from "../../../utils/constants";
 
 import {EditEmployeeDialogWrapper, EditEmployeeForm} from "./styled";
-import {IListOfEmployees} from "../../../services/FileBrowserService";
+import {IListOfEmployees, changeEmployee} from "../../../services/FileBrowserService";
 
 interface IEditEmployeeDialogProps {
     editEmployeeModalValue: IListOfEmployees | null;
     isEditEmployeeModalVisible: boolean;
-    setIsEditEmployeeModalVisible: React.Dispatch<React.SetStateAction<boolean>>
+    setIsEditEmployeeModalVisible: React.Dispatch<React.SetStateAction<boolean>>;
+    getListOfEmployees: () => void;
 }
 
 interface ISelectedDayState {
@@ -38,34 +39,41 @@ const initialSelectedDayState: ISelectedDayState = {
 }
 
 
+
 export const EditEmployeeDialog = (
     {
         editEmployeeModalValue,
         isEditEmployeeModalVisible,
-        setIsEditEmployeeModalVisible
+        setIsEditEmployeeModalVisible,
+        getListOfEmployees
     }: IEditEmployeeDialogProps
 ) => {
-    const[selectedDay, setSelectedDay] = useState<ISelectedDayState>(initialSelectedDayState);
-    const [workTime, setWorkTime] = useState<WorkTimeState>({});
+
     const [editEmployeeForm] = Form.useForm<IEditEmployee>();
+
+    useEffect(() => {
+        if (editEmployeeModalValue) {
+            editEmployeeForm.setFieldsValue(editEmployeeModalValue);
+        }
+    }, [editEmployeeModalValue]);
 
     const handleEditEmployee = (values: any) => {
         console.log(values)
+        changeEmployee({
+            ...values,
+            id: editEmployeeModalValue?.id
+        }).then(() => {
+            message.success('Данные пассажира успешно обновлены!');
+            getListOfEmployees();
+        })
+            .catch(() => {
+                message.error('Ошибка при обновлении данных пассажира.');
+            });
         setIsEditEmployeeModalVisible(false);
-        setSelectedDay(initialSelectedDayState);
+
     }
-    const handleChooseWorkDay = (day: SelectedDayValueKey) => {
-        setSelectedDay(prevState => ({
-            ...prevState,
-            [day]: !prevState[day],
-        }));
-    }
-    const handleWorkTimeChange = (day: SelectedDayValueKey, value: string) => {
-        setWorkTime(prevState => ({
-            ...prevState,
-            [day]: value,
-        }));
-    };
+
+
     return (
         <EditEmployeeDialogWrapper>
             <Modal
@@ -74,7 +82,6 @@ export const EditEmployeeDialog = (
                 onCancel={() => {
                     setIsEditEmployeeModalVisible(false);
                     editEmployeeForm.resetFields();
-                    setSelectedDay(initialSelectedDayState);
                 }}
                 footer={null}
             >
@@ -138,40 +145,6 @@ export const EditEmployeeDialog = (
                             ))}
                         </Select>
                     </Form.Item>
-                    {WEEKDAYS.map((day) => (
-                        <div key={day} className="workDate-wrapper">
-                            <Card
-                                className={selectedDay[day] ? 'card-day working-day' : 'card-day'}
-                                onClick={() => handleChooseWorkDay(day)}
-                            >
-                                <div className="day-name">{day}</div>
-                            </Card>
-                            <div className={`${selectedDay[day] ? 'shiftScheduleWrapper__block' : 'shiftScheduleWrapper'}`}>
-                                <Form.Item
-                                    name={`workTime-${day}`}
-                                    label="График смен"
-                                    rules={[{
-                                        required: selectedDay[day],
-                                        message: 'Пожалуйста, выберите рабочее время'
-                                    }]}
-                                    style={{ flex: 1 }}
-                                >
-                                    <Select
-                                        value={workTime[day] || undefined}
-                                        onChange={(value) => handleWorkTimeChange(day, value)}
-                                        className="time-picker"
-                                    >
-                                        {TIME_WORK.map((time) => (
-                                            <Select.Option key={time} value={time}>
-                                                {time}
-                                            </Select.Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
-                            </div>
-                        </div>
-                    ))}
-
                     <Form.Item>
                         <Button type="primary" htmlType="submit">
                             Зарегистрировать

@@ -2,7 +2,7 @@ import React, {useEffect, useState} from 'react';
 import { Table, Card, Empty } from 'antd';
 import { format } from 'date-fns';
 import {employeeList, ITestWaitingList, nameStations} from "../../../utils/constants";
-import {IListOfPassengers} from "../../../services/FileBrowserService";
+import {IListOfPassengers, IListOfBids, IBids, IListOfEmployees} from "../../../services/FileBrowserService";
 
 
 // const list: IListOfPassengers[] = [
@@ -12,8 +12,9 @@ import {IListOfPassengers} from "../../../services/FileBrowserService";
 
 type TableProps = {
     timeSlots: string[];
-    data: ITestWaitingList[];
+    data: IListOfBids[];
     passengerList: IListOfPassengers[];
+    listOfEmployees: IListOfEmployees[];
 };
 
 interface TableRow {
@@ -25,10 +26,8 @@ interface TableRow {
 interface ITitleResultData {
     passenger: string;
     timeApplication: string;
-    category: string;
-    registrationTime: string;
-    countOfMan: string;
-    countOfWomen: string;
+    countOfMan: number;
+    countOfWomen: number;
     startStation: string;
     endStation: string;
 }
@@ -39,7 +38,7 @@ interface IResultData {
     title: ITitleResultData
 }
 
-export const ApplicationTabs: React.FC<TableProps> = ({ timeSlots, data, passengerList }) => {
+export const ApplicationTabs: React.FC<TableProps> = ({ timeSlots, data, passengerList, listOfEmployees }) => {
 
     const roundTimeToNearestHalfHour = (time: string): string => {
         let formattedTime = time;
@@ -62,137 +61,138 @@ export const ApplicationTabs: React.FC<TableProps> = ({ timeSlots, data, passeng
             const roundedHour = hour - 1;
             return `${roundedHour.toString().padStart(2, '0')}:30`;
         }
+
     }
 
-    const receivingApplicationData = (applicationData: ITestWaitingList, listPassenger: IListOfPassengers[]) => {
-        const pass = listPassenger.find(pas => pas.id === +applicationData.id_pas)?.surName;
-        return (
-            {
-                employeeName: employeeList.find(fio => fio.ID === applicationData.id_employee)?.FIO || '',
-                title: {
-                    passenger: pass || '',
-                    timeApplication: applicationData.datetime,
-                    category: applicationData.cat_pas,
-                    registrationTime: applicationData.tpz,
-                    countOfMan: applicationData.INSP_SEX_M,
-                    countOfWomen: applicationData.INSP_SEX_F,
-                    startStation: nameStations.find(name => name.id === applicationData.id_st1)?.name_station || '',
-                    endStation: nameStations.find(name => name.id === applicationData.id_st2)?.name_station || '',
+
+    // "id": number,
+    //     "passengerId": number,
+    //     "createdDate": string,
+    //     "createdTime": string,
+    //     "date": string,
+    //     "time": string,
+    //     "status": string,
+    //     "stID1": number,
+    //     "stID2": number,
+    //     "countMale": number,
+    //     "countFemale": number,
+    //     "timePredict": string,
+    //     "timeStart": string,
+    //     "timeOver": string
+
+
+
+
+
+
+    console.log(data)
+
+    if(data.length){
+        const receivingApplicationData = (applicationData: IListOfBids, listPassenger: IListOfPassengers[]) => {
+            const pass = listPassenger.find(pas => pas.id === applicationData.bid.passengerId)?.surName;
+            return (
+                {
+                    employeeName: listOfEmployees.filter(employee => applicationData.employeesId.includes(employee.id))[0]?.surName || '',
+                    title: {
+                        passenger: pass || '',
+                        timeApplication: applicationData.bid.time,
+                        countOfMan: applicationData.bid.countMale,
+                        countOfWomen: applicationData.bid.countFemale,
+                        startStation: nameStations.find(name => +name.id === applicationData.bid.stID1)?.name_station || '',
+                        endStation: nameStations.find(name => +name.id === applicationData.bid.stID2)?.name_station || '',
+                    }
+
                 }
+            )
 
-            }
-        )
-
-    }
-
-
-
-    const resultData: IResultData[] = data.map(item => {
-        return ({
-            ...receivingApplicationData(item, passengerList),
-            time: roundTimeToNearestHalfHour(item.datetime),
-
-        })
-    })
-
-
-    // const resultData: IResultData[] = data.map(item => {
-    //     const pass = list.find(pas => pas.id === +item.id_pas)?.surName;
-    //     return ({
-    //         employeeName: employeeList.find(fio => fio.ID === item.id_employee)?.FIO || '',
-    //         time: roundTimeToNearestHalfHour(item.datetime),
-    //         title: {
-    //             passenger: pass || '',
-    //             timeApplication: item.datetime,
-    //             category: item.cat_pas,
-    //             registrationTime: item.tpz,
-    //             countOfMan: item.INSP_SEX_M,
-    //             countOfWomen: item.INSP_SEX_F,
-    //             startStation: nameStations.find(name => name.id === item.id_st1)?.name_station || '',
-    //             endStation: nameStations.find(name => name.id === item.id_st2)?.name_station || '',
-    //         }
-    //
-    //     })
-    // })
-
-
-    const employees = employeeList
-        .filter(item => data.find(application => application.id_employee === item.ID))
-        .map(employee => {
-            return ({
-                name: employee.FIO
-            })
-        });
-
-
-    const handleViewingApplication = () => {
-        console.log('handleViewingApplication');
-    }
-
-
-
-    const columns = employees.length ? [
-        {
-            title: 'Time',
-            dataIndex: 'time',
-            key: 'time',
-            fixed: 'left' as const,
-            width: 100,
-        },
-        ...employees.map((employee) => ({
-            title: employee.name,
-            dataIndex: 'employeeData',  // Используем отдельное поле для данных
-            key: employee.name,
-            width: 150,
-            render: (_: any, row: TableRow) => {
-                const data: ITitleResultData = row[employee.name] as ITitleResultData;
-                if (!data) {
-                    return null;
-                }
-                return (
-                    <Card onClick={handleViewingApplication}>
-                        <div>Category: {data.category}</div>
-                        <div>Time Application: {data.timeApplication}</div>
-                        <div>Start Station: {data.startStation}</div>
-                        <div>End Station: {data.endStation}</div>
-                    </Card>
-                );
-            },
-        })),
-    ] : [];
-
-    const dataMap = new Map<string, Map<string, ITitleResultData>>(); // Map для хранения значений title
-
-    resultData.forEach(({ employeeName, time, title }) => {
-        if (!dataMap.has(time)) {
-            dataMap.set(time, new Map<string, ITitleResultData>());
         }
-        dataMap.get(time)!.set(employeeName, title);
-    });
+
+        const resultData: IResultData[] = data.map(item => {
+            return ({
+                ...receivingApplicationData(item, passengerList),
+                time: roundTimeToNearestHalfHour(item.bid.time),
+
+            })
+        })
+
+        const employees = listOfEmployees
+            .filter(item => data.find(application => application.employeesId.includes(item.id)))
+            .map(employee => {
+                console.log(employee.lastName)
+                return ({
+                    name: `${employee.surName}`
+                })
+            });
 
 
-    const startedTime = resultData.sort((a, b) => a.time < b.time ? -1 : a.time > b.time ? 1 : 0);
+        const handleViewingApplication = () => {
+            console.log('handleViewingApplication');
+        }
 
-    const veuTimeIndex = timeSlots.findIndex(time => startedTime[0].time === time);
+        const columns = employees.length ? [
+            {
+                title: 'Time',
+                dataIndex: 'time',
+                key: 'time',
+                fixed: 'left' as const,
+                width: 100,
+            },
+            ...employees.map((employee) => ({
+                title: employee.name,
+                dataIndex: 'employeeData',  // Используем отдельное поле для данных
+                key: employee.name,
+                width: 150,
+                render: (_: any, row: TableRow) => {
+                    const data: ITitleResultData = row[employee.name] as ITitleResultData;
+                    if (!data) {
+                        return null;
+                    }
+                    return (
+                        <Card onClick={handleViewingApplication}>
+                            <div>Время заявки: {data.timeApplication}</div>
+                            <div>Станция отправления: {data.startStation}</div>
+                            <div>Станция назначения: {data.endStation}</div>
+                        </Card>
+                    );
+                },
+            })),
+        ] : [];
+        const dataMap = new Map<string, Map<string, ITitleResultData>>(); // Map для хранения значений title
 
+        resultData.forEach(({ employeeName, time, title }) => {
 
-    const tableData: TableRow[] = timeSlots.slice(veuTimeIndex).map((time, index) => {
-        const row: TableRow = { key: index, time };
-        employees.forEach((employee) => {
-            row[employee.name] = dataMap.get(time)?.get(employee.name) || null;
+            if (!dataMap.has(time)) {
+                dataMap.set(time, new Map<string, ITitleResultData>());
+            }
+            dataMap.get(time)!.set(employeeName, title);
         });
-        return row;
-    });
-    return (
-        <Table
-            bordered
-            columns={columns}
-            dataSource={tableData}
-            pagination={{ pageSize: 10 }}
-            scroll={{ y: 400, x: 'max-content' }}
-        />
-    )
 
 
+        const startedTime = resultData.sort((a, b) => a.time < b.time ? -1 : a.time > b.time ? 1 : 0);
+
+        const veuTimeIndex = timeSlots.findIndex(time => startedTime[0].time === time);
+
+
+        const tableData: TableRow[] = timeSlots.slice(veuTimeIndex).map((time, index) => {
+            const row: TableRow = { key: index, time };
+            employees.forEach((employee) => {
+                row[employee.name] = dataMap.get(time)?.get(employee.name) || null;
+            });
+            return row;
+        });
+        return (
+            <Table
+                bordered
+                columns={columns}
+                dataSource={tableData}
+                pagination={{ pageSize: 10 }}
+                scroll={{ y: 400, x: 'max-content' }}
+            />
+        )
+    } else {
+        return (
+            <Empty />
+        )
+    }
 };
 

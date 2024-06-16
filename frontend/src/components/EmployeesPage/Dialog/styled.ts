@@ -22,7 +22,7 @@ export const EditEmployeeForm = styled(Form)`
         align-items: center;
         margin-bottom: 10px;
         margin-top: 15px;
-        height: 60px
+        
     }
     .shiftScheduleWrapper {
         margin-left: 10px;
@@ -33,10 +33,16 @@ export const EditEmployeeForm = styled(Form)`
         margin-left: 10px;
         display: block;
     }
+    .shiftScheduleContent {
+        display: flex;
+    }
     .card-day {
         cursor: pointer;
-        width: 50px;
-        margin-right: 70px;
+        width: 150px;
+        margin-right: 30px;
+        .ant-card-body {
+            width: 150px;
+        }
     }
     .time-picker {
         width: 150px;

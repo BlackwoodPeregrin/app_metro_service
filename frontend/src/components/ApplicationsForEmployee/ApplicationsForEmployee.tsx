@@ -221,10 +221,11 @@
 //         </ApplicationsForEmployeeWrapper>
 //     );
 // };
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { List, Card, Button, Tabs, message } from 'antd';
 import { PhoneOutlined } from '@ant-design/icons';
-import {updateStatus} from "../../services/FileBrowserService";
+import {updateStatus, bidAllEmployee, IBidAllEmployeeList} from "../../services/FileBrowserService";
+import {useAuth} from "../../context/authContext";
 // import axios from 'axios';
 
 import { waitingList, nameStations, IWaitingList } from "../../utils/constants";
@@ -245,6 +246,12 @@ const statusButtonsMap: { [key in ApplicationStatus]: string[] } = {
 
 export const ApplicationsForEmployee = () => {
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [employeeBidList, setEmployeeBidList] = useState<IBidAllEmployeeList[]>([]);
+    const { id, isAuth } = useAuth();
+
+    const getEmployeeBidList = (idEmployee: number) => {
+        bidAllEmployee(idEmployee)
+    }
 
     useEffect(() => {
         const timerId = setInterval(() => {
@@ -253,6 +260,14 @@ export const ApplicationsForEmployee = () => {
 
         // Очищаем таймер при размонтировании компонента
         return () => clearInterval(timerId);
+    }, []);
+
+    useEffect(() => {
+        if(id !== null){
+            getEmployeeBidList(+id);
+
+        }
+
     }, []);
 
     const myApplications = waitingList.sort((a, b) => {

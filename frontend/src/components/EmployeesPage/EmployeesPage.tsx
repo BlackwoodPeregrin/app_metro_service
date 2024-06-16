@@ -4,7 +4,12 @@ import {Card, Row, Col, Button, Form, Modal, Input, Select, Pagination, message}
 import { parse, format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import RedCross from "../../icons/RedCross";
-import {SPOT_LIST, LIST_OF_POSITION, IAddEmployee, WEEKDAYS, PAGE_SIZE} from "../../utils/constants";
+import {SPOT_LIST, LIST_OF_POSITION, IAddEmployee, WEEKDAYS, PAGE_SIZE, daysOfWeek} from "../../utils/constants";
+import {DeleteTwoTone, EditTwoTone} from '@ant-design/icons';
+import {EditEmployeeWorkSchedule} from "./Dialog/EditEmployeeWorkSchedule";
+import {UnallocatedTasks} from "./Dialog/UnallocatedTasks";
+
+
 
 import {HomePageWrapper} from './styled'
 import {PlusOutlined} from "@ant-design/icons";
@@ -15,23 +20,15 @@ import {
     addNewEmployee,
     IEmployeeWorkSchedule,
     IListOfEmployees,
-    requestListOfEmployee
+    requestListOfEmployee,
+    workSchedule,
+    IEditWorkSchedule,
+    employeeSickLeave
 } from "../../services/FileBrowserService";
 
 const AddEmployeeForm = styled(Form)`
     margin-bottom: 20px;
 `;
-
-interface ICreateNewEmployee {
-    lastName: string,
-    firstName: string,
-    surName: string,
-    role: string,
-    workAria: string,
-    sex: string,
-    phone: string
-}
-
 
 export const EmployeesPage: React.FC = () => {
     const [listOfEmployees, setListOfEmployees] = useState<IListOfEmployees[]>([]);
@@ -41,6 +38,10 @@ export const EmployeesPage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [employeeWorkSchedule, setEmployeeWorkSchedule] = useState<IEmployeeWorkSchedule[]>([]);
+    const [editWorkSchedule, setEditWorkSchedule] = useState<IEditWorkSchedule | null>(null);
+    const [isEditEmployeeWorkScheduleVisible, setIsEditEmployeeWorkScheduleVisible] = useState<boolean>(false);
+    const [listOfUnallocatedTasksIsVisible, setListOfUnallocatedTasksIsVisible] = useState(false);
+    const [idOfUnallocatedTasks, setIdOfUnallocatedTasks] = useState<number[]>([]);
 
     const [addEmployeeForm] = Form.useForm<IAddEmployee>();
 
@@ -54,8 +55,20 @@ export const EmployeesPage: React.FC = () => {
             })
     }
 
+    const getWorkSchedule = () => {
+        workSchedule()
+            .then(response => {
+                console.log(response);
+                setEmployeeWorkSchedule(response);
+            })
+            .catch(() => {
+                message.error('Ошибка при получении списка рабочего времени.');
+            })
+    }
+
     useEffect(() => {
-        getListOfEmployees()
+        getListOfEmployees();
+        getWorkSchedule();
     }, [])
 
 
@@ -67,28 +80,8 @@ export const EmployeesPage: React.FC = () => {
         })
         setIsAddEmployeeModalVisible(false);
     }
-    const getAbbreviatedDayOfWeek = (fullDayOfWeek: string) => {
-        switch (fullDayOfWeek) {
-            case 'понедельник':
-                return 'Пн';
-            case 'вторник':
-                return 'Вт';
-            case 'среда':
-                return 'Ср';
-            case 'четверг':
-                return 'Чт';
-            case 'пятница':
-                return 'Пт';
-            case 'суббота':
-                return 'Сб';
-            case 'воскресенье':
-                return 'Вс';
-            default:
-                return '';
-        }
-    }
+
     const handleEdit = (employee: IListOfEmployees ) => {
-        // console.log(employee.FIO);
         setEditEmployeeModalValue(employee);
         setIsEditEmployeeModalVisible(true);
     }
@@ -106,6 +99,33 @@ export const EmployeesPage: React.FC = () => {
     );
 
     const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+    const handleEditWorkSchedule = (id: number, workShadul: IEmployeeWorkSchedule ) => {
+        setEditWorkSchedule({id: id, workSchedule: workShadul});
+        setIsEditEmployeeWorkScheduleVisible(true);
+        console.log('handleEditWorkSchedule')
+    }
+
+    const handleClickCross = (employee: IListOfEmployees) => {
+        const sickStatus = !employee.sick ? 'on' : 'off';
+        employeeSickLeave(employee.id, sickStatus)
+            .then((res) => {
+                if(res.bidsId) {
+                    if(res.bidsId.length > 0){
+                        setListOfUnallocatedTasksIsVisible(true);
+                        setIdOfUnallocatedTasks(res.bidsId)
+                    } else {
+                        message.success('Заявки успешно перераспределены.');
+                        // getWorkSchedule()
+                    }
+                }
+                getListOfEmployees();
+
+
+            })
+
+
+    }
 
     return (
         <HomePageWrapper>
@@ -193,39 +213,60 @@ export const EmployeesPage: React.FC = () => {
                 editEmployeeModalValue={editEmployeeModalValue}
                 isEditEmployeeModalVisible={isEditEmployeeModalVisible}
                 setIsEditEmployeeModalVisible={setIsEditEmployeeModalVisible}
+                getListOfEmployees={getListOfEmployees}
+            />
+            <EditEmployeeWorkSchedule
+                editWorkSchedule={editWorkSchedule}
+                isEditEmployeeWorkScheduleVisible={isEditEmployeeWorkScheduleVisible}
+                setIsEditEmployeeWorkScheduleVisible={setIsEditEmployeeWorkScheduleVisible}
+                getWorkSchedule={getWorkSchedule}
+                setListOfUnallocatedTasksIsVisible={setListOfUnallocatedTasksIsVisible}
+                setIdOfUnallocatedTasks={setIdOfUnallocatedTasks}
+            />
+            <UnallocatedTasks
+                listOfUnallocatedTasksIsVisible={listOfUnallocatedTasksIsVisible}
+                setListOfUnallocatedTasksIsVisible={setListOfUnallocatedTasksIsVisible}
+                idOfUnallocatedTasks={idOfUnallocatedTasks}
             />
             <Row gutter={[16, 16]}>
                 {paginatedEmployees.sort((a, b) => a.surName.localeCompare(b.surName, 'ru', { sensitivity: 'base' })).map(employee => {
-                    // const parsedDate = parse(item., 'dd.MM.yyyy', new Date());
-                    // const dayOfWeek = format(parsedDate, 'EEEE', { locale: ru as any });
+                    const employeeSchedule = employeeWorkSchedule.find(item => item.employeeId === employee.id)!;
                     return (
                         <Col key={`${employee.id}}`} span={8}>
                             <Card
                                 title={`${employee.surName} ${employee.firstName} ${employee.lastName}`}
                                 extra={
-                                    <div className="management-btn">
-                                        <RedCross width={30} height={30} />
-                                        <Button
-                                            className="btn-edit"
-                                            onClick={() => handleEdit(employee)}
-                                        >
-                                            Редактировать
-                                        </Button>
+                                    <div className="management-btn" style={{ width: '70px', justifyContent: 'space-between' }} >
+                                        <RedCross width={30} height={30} onClick={() => handleClickCross(employee)} />
+                                        <EditTwoTone style={{fontSize: '25px'}} onClick={() => handleEdit(employee)} />
                                     </div>}
                                 style={{height: '100%'}}>
                                 <div>Номер участка сотрудника: {employee.workAria}</div>
                                 <div>Должность: {employee.role}</div>
-                                <div>Рабочий график сотрудника:</div>
-                                <div className="dayOfWeek" onClick={(e) =>handleChooseDay(e)}>
-                                    {WEEKDAYS.map(day => {
+                                <div>
+                                    <div>Рабочий график сотрудника:</div>
+                                    <EditTwoTone style={{fontSize: '20px'}} onClick={() => handleEditWorkSchedule(employee.id, employeeSchedule)} />
+                                </div>
+                                <div className="dayOfWeek" style={{ flexDirection: 'column'}} onClick={(e) =>handleChooseDay(e)}>
+                                    {daysOfWeek.map((day) => {
                                         return (
                                             <Card
-                                                key={`${employee.id}`}
-                                                // className={
-                                                //     `${getAbbreviatedDayOfWeek(dayOfWeek.toLowerCase()) === day ? 'card-day working-day' : 'card-day'}`
-                                                // }
+                                                key={day.key}
+                                                className={`card-day ${employeeSchedule?.weekIntervals[day.key] ? 'working-day' : ''} ${employee.sick ? 'sikOn' : 'sikOff'}`}
+                                                // style={{
+                                                //     padding: '10px',
+                                                //     margin: '5px 0',
+                                                //     backgroundColor: weekIntervals[day.key] ? '#d3f9d8' : '#f0f0f0',
+                                                //     borderRadius: '5px'
+                                                // }}
                                             >
-                                                <div className="day-name">{day}</div>
+                                                <div className="day-name">{day.name}</div>
+                                                {employeeSchedule?.weekIntervals[day.key] && (
+                                                    <div>
+                                                        <div>Работа: {employeeSchedule?.weekIntervals[day.key].work.start} - {employeeSchedule?.weekIntervals[day.key].work.end}</div>
+                                                        <div>Обед: {employeeSchedule?.weekIntervals[day.key].dinner.start} - {employeeSchedule?.weekIntervals[day.key].dinner.end}</div>
+                                                    </div>
+                                                )}
                                                 {/*<div>{employee.}</div>*/}
                                             </Card>
                                         )

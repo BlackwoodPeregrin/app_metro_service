@@ -1,9 +1,14 @@
 package app.metro.service
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
+import org.springframework.boot.web.server.Ssl
+import org.springframework.boot.web.server.WebServerFactoryCustomizer
+import org.springframework.boot.web.servlet.server.ConfigurableServletWebServerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.stereotype.Component
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
@@ -34,6 +39,21 @@ open class SwaggerConfig {
             .apis(RequestHandlerSelectors.basePackage("app.metro.service.controllers"))
             .paths(PathSelectors.any())
             .build()
+    }
+}
+
+@Component
+class CustomizationBean(
+    @Value("\${keystore.path}") private val keystorePath: String,
+    @Value("\${keystore.password}") private val keystorePassword: String,
+) : WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> {
+    override fun customize(factory: ConfigurableServletWebServerFactory) {
+        factory.setSsl(Ssl().apply {
+            isEnabled = true
+            keyStore = keystorePath
+            keyStoreType = "PKCS12"
+            keyStorePassword = keystorePassword
+        })
     }
 }
 

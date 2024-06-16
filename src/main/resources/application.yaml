@@ -18,3 +18,10 @@ graph:
 
 time_allowance_category: /home/sergey/work/example/app_metro_service/src/main/resources/configs/statistic.json
 station: /home/sergey/work/example/app_metro_service/src/main/resources/configs/station.json
+
+uri:
+  registration: http://10.10.10.7:8080/
+
+keystore:
+    path: /home/sergey/work/example/app_metro_service/src/main/resources/configs/keystore.p12
+    password: metro

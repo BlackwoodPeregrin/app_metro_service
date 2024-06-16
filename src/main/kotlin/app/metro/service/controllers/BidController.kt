@@ -53,7 +53,7 @@ open class BidController(
     }
 
     @PostMapping("/on_the_way")
-    @ApiOperation(value = "Установить статус заявке 'Инспектор в пути'")
+    @ApiOperation(value = "Установить статус заявке 'Инспектор выехал'")
     fun employeeOnTheWay(@RequestBody idBid: Int): Response {
         return try {
             changeStatusBid(idBid, BidStatus.ON_THE_WAY)
@@ -64,7 +64,7 @@ open class BidController(
     }
 
     @PostMapping("/wait_passenger")
-    @ApiOperation(value = "Установить статус заявке 'Ожидает пассажира'")
+    @ApiOperation(value = "Установить статус заявке 'Инспектор на месте'")
     fun employeeWaitPassenger(@RequestBody idBid: Int): Response {
         return try {
             changeStatusBid(idBid, BidStatus.WAIT_PASSENGER)
@@ -75,7 +75,7 @@ open class BidController(
     }
 
     @PostMapping("/start")
-    @ApiOperation(value = "Установить статус заявке 'Начало поездки'")
+    @ApiOperation(value = "Установить статус заявке 'Поездка'")
     fun employeeStartBid(@RequestBody idBid: Int): Response {
         val bid = bidRepository.findById(idBid)
         if (!bid.isPresent) {
@@ -93,7 +93,7 @@ open class BidController(
     }
 
     @PostMapping("/finish")
-    @ApiOperation(value = "Установить статус заявке 'Поездка завершена'")
+    @ApiOperation(value = "Установить статус заявке 'Заявка закончена'")
     fun employeeFinishBid(@RequestBody idBid: Int): Response {
         val bid = bidRepository.findById(idBid)
         if (!bid.isPresent) {
@@ -111,7 +111,7 @@ open class BidController(
     }
 
     @PostMapping("/late/employee")
-    @ApiOperation(value = "Установить статус заявке 'Сотрудник опаздывает'")
+    @ApiOperation(value = "Установить статус заявке 'Инспектор опаздывает'")
     fun employeeLate(@RequestBody idBid: Int): Response {
         return try {
             changeStatusBid(idBid, BidStatus.INSPECTOR_LATE)
@@ -133,7 +133,7 @@ open class BidController(
     }
 
     @PostMapping("/cansel")
-    @ApiOperation(value = "Отменить заявку")
+    @ApiOperation(value = "Отменить заявку и установить статус 'Отменена'")
     fun canselBid(@RequestBody idBid: Int): Response {
         return try {
             assignedBidRepo.removeBidFromEmployees(idBid)

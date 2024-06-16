@@ -17,7 +17,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import kotlin.math.ceil
 import java.util.concurrent.locks.ReentrantLock
-import javax.annotation.PostConstruct
 
 @EnableScheduling
 @Service

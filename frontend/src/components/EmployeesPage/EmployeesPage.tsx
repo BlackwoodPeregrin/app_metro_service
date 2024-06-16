@@ -1,11 +1,10 @@
 import React, {useEffect, useState} from 'react';
-import { employeeList, IEmployeeList } from "../../utils/constants";
+
 import {Card, Row, Col, Button, Form, Modal, Input, Select, Pagination, message} from 'antd';
-import { parse, format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+
 import RedCross from "../../icons/RedCross";
-import {SPOT_LIST, LIST_OF_POSITION, IAddEmployee, WEEKDAYS, PAGE_SIZE, daysOfWeek} from "../../utils/constants";
-import {DeleteTwoTone, EditTwoTone} from '@ant-design/icons';
+import {SPOT_LIST, LIST_OF_POSITION, IAddEmployee, PAGE_SIZE, daysOfWeek} from "../../utils/constants";
+import {EditTwoTone} from '@ant-design/icons';
 import {EditEmployeeWorkSchedule} from "./Dialog/EditEmployeeWorkSchedule";
 import {UnallocatedTasks} from "./Dialog/UnallocatedTasks";
 
@@ -120,11 +119,7 @@ export const EmployeesPage: React.FC = () => {
                     }
                 }
                 getListOfEmployees();
-
-
             })
-
-
     }
 
     return (
@@ -253,12 +248,6 @@ export const EmployeesPage: React.FC = () => {
                                             <Card
                                                 key={day.key}
                                                 className={`card-day ${employeeSchedule?.weekIntervals[day.key] ? 'working-day' : ''} ${employee.sick ? 'sikOn' : 'sikOff'}`}
-                                                // style={{
-                                                //     padding: '10px',
-                                                //     margin: '5px 0',
-                                                //     backgroundColor: weekIntervals[day.key] ? '#d3f9d8' : '#f0f0f0',
-                                                //     borderRadius: '5px'
-                                                // }}
                                             >
                                                 <div className="day-name">{day.name}</div>
                                                 {employeeSchedule?.weekIntervals[day.key] && (
@@ -267,7 +256,6 @@ export const EmployeesPage: React.FC = () => {
                                                         <div>Обед: {employeeSchedule?.weekIntervals[day.key].dinner.start} - {employeeSchedule?.weekIntervals[day.key].dinner.end}</div>
                                                     </div>
                                                 )}
-                                                {/*<div>{employee.}</div>*/}
                                             </Card>
                                         )
                                     })}
@@ -277,14 +265,18 @@ export const EmployeesPage: React.FC = () => {
                         </Col>
                     )})}
             </Row>
-            <Pagination
-                current={currentPage}
-                total={filteredEmployees.length}
-                pageSize={PAGE_SIZE}
-                onChange={(page) => setCurrentPage(page)}
-                showSizeChanger={false}
-                style={{ marginTop: '20px', textAlign: 'center' }}
-            />
+            {filteredEmployees.length > 6 ? (
+                    <Pagination
+                        current={currentPage}
+                        total={filteredEmployees.length}
+                        pageSize={6}
+                        onChange={(page) => setCurrentPage(page)}
+                        showSizeChanger={false}
+                        style={{ marginTop: '20px', textAlign: 'center' }}
+                    />
+                ) : null
+            }
+
         </HomePageWrapper>
     );
 };

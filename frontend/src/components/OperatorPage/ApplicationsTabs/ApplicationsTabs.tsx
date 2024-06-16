@@ -1,14 +1,8 @@
-import React, {useEffect, useState} from 'react';
+import React from 'react';
 import { Table, Card, Empty } from 'antd';
-import { format } from 'date-fns';
-import {employeeList, ITestWaitingList, nameStations} from "../../../utils/constants";
-import {IListOfPassengers, IListOfBids, IBids, IListOfEmployees} from "../../../services/FileBrowserService";
 
-
-// const list: IListOfPassengers[] = [
-//     {"id":1,"surName":"Дориан","firstName":"Джон","lastName":"Дмитриевич","category":"ИЗТ","phone":"+7-999-808-15-44", "sex": "Мужской"},
-//     {"id":2,"surName":"Конор","firstName":"Сара","lastName":"Эльдаровна","category":"ИС","phone":"+7-999-808-15-44", "sex": "Женский"},
-// ]
+import {nameStations} from "../../../utils/constants";
+import {IListOfPassengers, IListOfBids, IListOfEmployees} from "../../../services/FileBrowserService";
 
 type TableProps = {
     timeSlots: string[];
@@ -63,29 +57,6 @@ export const ApplicationTabs: React.FC<TableProps> = ({ timeSlots, data, passeng
         }
 
     }
-
-
-    // "id": number,
-    //     "passengerId": number,
-    //     "createdDate": string,
-    //     "createdTime": string,
-    //     "date": string,
-    //     "time": string,
-    //     "status": string,
-    //     "stID1": number,
-    //     "stID2": number,
-    //     "countMale": number,
-    //     "countFemale": number,
-    //     "timePredict": string,
-    //     "timeStart": string,
-    //     "timeOver": string
-
-
-
-
-
-
-    console.log(data)
 
     if(data.length){
         const receivingApplicationData = (applicationData: IListOfBids, listPassenger: IListOfPassengers[]) => {

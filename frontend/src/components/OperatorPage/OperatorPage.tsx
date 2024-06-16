@@ -17,8 +17,8 @@ import {
 } from 'antd';
 import {PlusOutlined, SearchOutlined, LeftOutlined} from '@ant-design/icons';
 import { parse, addMinutes, format } from 'date-fns';
-import dayjs from 'dayjs';
-import {waitingList, employeeList, ITestWaitingList, SPOT_LIST} from "../../utils/constants";
+import { Dayjs } from 'dayjs';
+import {employeeList, SPOT_LIST} from "../../utils/constants";
 import {ApplicationTabs} from "./ApplicationsTabs/ApplicationsTabs";
 import ApplicationCard from "./ApplicationCard/ApplicationCard";
 import {WarningApplicationCard} from "./WarningApplicationCard/WarningApplicationCard";
@@ -33,42 +33,13 @@ import {
     requestListOfPassengers,
     calculateNewBid,
     IAddBidProps,
-    addNewBid, IListFilterBid, findBid, IListOfBidsResult
+    addNewBid, IListFilterBid, findBid, IListOfBidsResult, dateAutoDistribution
 } from "../../services/FileBrowserService";
 import {nameStations} from "../../utils/constants";
 import SidebarMenu from "../SidebarMenu/SidebarMenu";
 
 
 const { TabPane } = Tabs;
-
-interface ISearchParameterApplication {
-    id?: string | number | null,
-    passenger_lastName?: string | null,
-    passenger_firstName?: string | null,
-    passenger_surName?: string | null,
-    category?: string | null,
-    id_st1?: string | null | undefined,
-    id_st2?: string | null | undefined,
-    status?: string | null,
-    uchastok?: string | null,
-    employee_lastName?: string | null,
-    employee_firstName?: string | null,
-    employee_surName?: string | null,
-    startDate?: string | null,
-    endDate?: string | null,
-    time?: string | null
-} // параметры поиска
-
-interface ICreateNewApplication {
-    passengerId: number,
-    date: string,
-    time: string,
-    stID1: number,
-    stID2: number,
-    countMale: number,
-    countFemale: number,
-    timePredict?: string | null,
-}
 
 const OperatorPageWrapper = styled.div`    
     .header {
@@ -97,42 +68,6 @@ interface Application {
     employee: string;
     date: string; // добавляем поле даты
 }
-
-// const testWaitingList: ITestWaitingList[] = waitingList.map((item, index) => {
-//     const employeeIndex = index % employeeList.length; // Циклический индекс
-//     return {
-//         ...item,
-//         id_employee: employeeList[employeeIndex].ID
-//     };
-// });
-
-// const testStatusWaitingList: ITestWaitingList[] = testWaitingList.map((item, index) => {
-//     let statusWait = '';
-//     if (index % 7 === 0) {
-//         statusWait = 'latePassenger'
-//     } else if (index % 6 === 0) {
-//         statusWait = 'lateEmployee'
-//     } else if (index % 5 === 0) {
-//         statusWait = 'finish'
-//     } else if (index % 4 === 0) {
-//         statusWait = 'start'
-//     } else if (index % 3 === 0) {
-//         statusWait = 'wait_passenger'
-//     } else if (index % 2 === 0) {
-//         statusWait = 'on_the_way'
-//     } else {
-//         statusWait = 'accept'
-//     }
-//     return {
-//         ...item,
-//         status: statusWait,
-//     };
-// })
-
-// const list: IListOfPassengers[] = [
-//     {"id":1,"lastName":"Дориан","firstName":"Джон","surName":"Грэй","category":"ИЗТ","phone":"+7-999-808-15-44"},
-//     {"id":2,"lastName":"Конор","firstName":"Сара","surName":"Терминаторна","category":"ИЗТ","phone":"+7-999-808-15-44"},
-// ] // тестовый список пассажиров
 
 const OperatorPage: React.FC = () => {
     const [listOfBids, setListOfBids] = useState<IListOfBids[]>([]);
@@ -175,16 +110,6 @@ const OperatorPage: React.FC = () => {
                 setTimePredict(respons.timePredict.split(':').slice(0,2).join(':'))
             })
     }
-
-    // const getListOfPassengers = () => {
-    //     requestListOfPassengers()
-    //         .then(response => {
-    //             setPassengerList(response.passengers)
-    //         })
-    //         .catch(error => {
-    //             message.error('Ошибка при получении списка пассажиров.');
-    //         })
-    // }
 
     useEffect(() => {
         const timerId = setInterval(() => {
@@ -232,13 +157,6 @@ const OperatorPage: React.FC = () => {
         const formattedTime2 = +`${hour2.padStart(2, '0')}${minute2}`;
         return formattedTime1 < formattedTime2
     }
-
-
-    // const [timePredictOfapplication, setTimePredictOfapplication] = useState<string | null>(null); // параметры заявки
-    // const [filteredPassengerList, setFilteredPassengerList] = useState<IListOfPassengers[]>([]);
-    // const [selectedPassenger, setSelectedPassenger] = useState<IListOfPassengers | null>(null);
-    // const [searchValue, setSearchValue] = useState('');
-
 
 
     const [applicationCreateForm] = Form.useForm<Application>();
@@ -293,8 +211,6 @@ const OperatorPage: React.FC = () => {
 
     const handleOpenApplicationModal = async () => {
         setIsApplicationCreateModalVisible(true);
-        // const passengerList: IListOfPassengers[] = await getListOfPassengers(); // перенести в useEffect
-        // setPassengerList(list); // туда же
     }
 
     const handleAddedTimeChange = (value: number) => {
@@ -314,13 +230,7 @@ const OperatorPage: React.FC = () => {
             countFemale: values.INSP_SEX_F,
         }
         setRequestOfCalculateAppParameter(requestCreationParameters);
-        console.log(requestCreationParameters);
         calculateTimeBid(requestCreationParameters);
-        // отправляем запрос на расчет заявки
-        // если запрос обработан, то
-        // setIsCalculationAppCompleted(true);
-        // setStatusOfCalculationAppCompleted(true) // статус проверки возможно ли распределить
-        // если статус тру то присваеваем предикт
         setRequestOfCreateAppParameter({...requestCreationParameters, timePredict: timePredict}) // сюда нужно добавить TIME_PREDICT из респонса
 
 
@@ -351,7 +261,6 @@ const OperatorPage: React.FC = () => {
     }
 
     const handleOpenSearchModal = () => {
-        // setIsSearchModalVisible(true);
         setIsSearchModalVisible(true)
     };
 
@@ -411,9 +320,6 @@ const OperatorPage: React.FC = () => {
                     setIsSearching(true);
                     console.log(response);
                 })
-            // здесь нужен запрос на бэк с параметрами поиска
-            // setSearchApplicationResults(searchParameterApplication) полученный результат добавляем в стэйт
-            // setIsSearching(true) открываем страницу с результатами
         }
     };
 
@@ -425,10 +331,23 @@ const OperatorPage: React.FC = () => {
                 listOfBids.filter(time=> time.bid.status === key && handleTimeComparison(time.bid.time, currentTime))
         )
         setWarningAoolicationIsVisible(true)
-        // Здесь можно добавить дополнительную логику обработки клика
     };
 
-    console.log(listOfBids.filter(time=> time.bid.status !== 'Заявка закончена' && handleTimeComparison(time.bid.time, currentTime)))
+    const [selectedDateAutoDistribution, setSelectedDateAutoDistribution] = useState<string>('');
+
+    const handleDateAutoDistributionChange = (date: Dayjs | null, dateString: string | string[]) => {
+
+        if (date) {
+            const formattedDate = date.format('YYYY-MM-DD');
+            setSelectedDateAutoDistribution(formattedDate);
+        } else {
+            setSelectedDateAutoDistribution('');
+        }
+    };
+
+    const handleAutoDistribution = (key: number) => {
+        dateAutoDistribution(selectedDateAutoDistribution, key === 1 ? 'dense' : 'uniform')
+    }
 
     return (
         <OperatorPageWrapper>
@@ -454,6 +373,26 @@ const OperatorPage: React.FC = () => {
                 >
                     Поиск заявок
                 </Button>
+            </div>
+            <div style={{ marginTop: '20px', width: '200px', display:' flex', flexDirection: 'column' }}>
+                <div style={{marginBottom: '10px'}}>Автоматическое распределение заявок</div>
+                <DatePicker format={dateFormat} onChange={handleDateAutoDistributionChange}/>
+                <div style={{display: 'flex', marginTop: '10px' }}>
+                    <Button
+                        type="default"
+                        onClick={() => handleAutoDistribution(1)}
+                    >
+                        Плотное распределение
+                    </Button>
+                    <Button
+                        type="default"
+                        onClick={() => handleAutoDistribution(2)}
+                        style={{ marginLeft: '10px' }}
+                    >
+                        Равномерное распределение
+                    </Button>
+                </div>
+
             </div>
             <Modal
                 title="Новая заявка"

@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {Button, List, Modal} from "antd";
-import {IEditWorkSchedule} from "../../../services/FileBrowserService";
 
 interface IUnallocatedTasksProps {
     listOfUnallocatedTasksIsVisible: boolean;

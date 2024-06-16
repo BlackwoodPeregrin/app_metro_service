@@ -370,7 +370,7 @@ export const bidAllEmployee = async (id: number): Promise<IBidAllEmployeeRespons
 
 export const updateStatus = async (status: string, idApplication: number): Promise<void> => {
     console.log(status)
-    const response = await fetch(`https://10.10.10.9:8080/api/v1/metro/service/${status}`, {
+    const response = await fetch(`${localHost}/api/v1/metro/service/bid/${status}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -378,6 +378,17 @@ export const updateStatus = async (status: string, idApplication: number): Promi
         body: JSON.stringify(idApplication),
     });
     console.log(response)
+    return await response.json();
+}
+
+export const dateAutoDistribution = async (date: string, formResponse: string): Promise<void> => {
+    const response = await fetch(`${localHost}/api/v1/metro/service/bid/redistribute/${formResponse}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(date),
+    });
     return await response.json();
 }
 

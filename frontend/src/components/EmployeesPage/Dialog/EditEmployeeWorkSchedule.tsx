@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
-import {Button, Card, Form, TimePicker, Modal, Select, List, message} from "antd";
-import {LIST_OF_POSITION, SPOT_LIST, IDaysOfWeek, IEditEmployee, daysOfWeek, SelectedDayValueKey} from "../../../utils/constants";
+import {Button, Card, Form, TimePicker, Modal, Select, message} from "antd";
+import {IDaysOfWeek, daysOfWeek, SelectedDayValueKey} from "../../../utils/constants";
 
 import {EditEmployeeDialogWrapper, EditEmployeeForm} from "./styled";
 import {IEditWorkSchedule, changeEmployeeSchedule} from "../../../services/FileBrowserService";
@@ -27,13 +27,6 @@ interface WorkTimeState {
     };
 }
 
-// export interface IEditWorkSchedule {
-//     [key: string]: {
-//         work: IWorkSchedule;
-//         dinner: IDinnerSchedule;
-//     };
-// }
-
 const TIME_WORK: string[] = ['07:00 - 19:00', '08:00 - 20:00', '10:00 - 22:00', '20:00 - 08:00'];
 
 const initialSelectedDayState: ISelectedDayState = {
@@ -56,7 +49,6 @@ export const EditEmployeeWorkSchedule = (
         setIdOfUnallocatedTasks
     }: IEditEmployeeDialogProps
 ) => {
-    console.log(editWorkSchedule)
     if(editWorkSchedule) {
         for(const key in initialSelectedDayState) {
             initialSelectedDayState[key] = Object.keys(editWorkSchedule?.workSchedule.weekIntervals).includes(key)
@@ -119,25 +111,6 @@ export const EditEmployeeWorkSchedule = (
         setIsEditEmployeeWorkScheduleVisible(false);
         setSelectedDay(initialSelectedDayState);
     }
-    const handleWorkDateChange = (day: IDaysOfWeek, value: string) => {
-
-        // const result = {
-        //     work: {
-        //         start: {
-        //             hour: value.split(' - ')[0].split(':')[0],
-        //             minute: value.split(' - ')[0].split(':')[1],
-        //         },
-        //         end: {
-        //             hour: value.split(' - ')[1].split(':')[0],
-        //             minute: value.split(' - ')[1].split(':')[1],
-        //         }
-        //     }
-        // }
-        // let mainRes: any = {}
-        // const key = day.key.toString()
-        // mainRes[key] = result;
-        // setWorkDate(prevState => [...prevState, value])
-    };
 
     const handleWorkTimeChange = (day: SelectedDayValueKey, value: Dayjs | null, type: 'work' | 'dinner', timeType: 'start' | 'end') => {
         setWorkTime(prevState => ({
@@ -181,7 +154,6 @@ export const EditEmployeeWorkSchedule = (
                     {daysOfWeek.map((day) => {
                         const initialDateWork = editWorkSchedule?.workSchedule.weekIntervals[day.key];
                         const initialDate = initialDateWork?.work.start.split(':').slice(0,2).join(':') || '';
-                        console.log(initialDate)
                         return (
 
                             <div key={day.key} className="workDate-wrapper">

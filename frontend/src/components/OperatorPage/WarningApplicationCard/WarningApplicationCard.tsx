@@ -1,6 +1,6 @@
 import React from 'react';
 import { Table } from 'antd';
-import {ITestWaitingList, nameStations} from "../../../utils/constants";
+import {nameStations} from "../../../utils/constants";
 import {IListOfPassengers, IListOfBids} from "../../../services/FileBrowserService";
 
 interface IPotentialProblemsListProps {

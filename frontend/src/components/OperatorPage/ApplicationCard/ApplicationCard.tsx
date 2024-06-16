@@ -1,29 +1,12 @@
-import React, {useState} from 'react';
-import {Card, DatePicker, Select, Table} from 'antd';
-import {ITestWaitingList, nameStations} from "../../../utils/constants";
+import React from 'react';
+import {Table} from 'antd';
+import {nameStations} from "../../../utils/constants";
 import {IListOfBidsResult, IListOfPassengers} from '../../../services/FileBrowserService';
-import dayjs from "dayjs";
-import {format} from "date-fns";
 
 interface IApplicationCardProps {
     application: IListOfBidsResult[]
     passengerList: IListOfPassengers[];
 }
-
-// "id": number,
-//     "passengerId": number,
-//     "createdDate": string,
-//     "createdTime": string,
-//     "date": string,
-//     "time": string,
-//     "status": string,
-//     "stID1": number,
-//     "stID2": number,
-//     "countMale": number,
-//     "countFemale": number,
-//     "timePredict": string,
-//     "timeStart": null,
-//     "timeOver": null
 
 const ApplicationCard: React.FC<IApplicationCardProps> = ({ application, passengerList }) => {
     const resultApplicationData = application.map(app => {

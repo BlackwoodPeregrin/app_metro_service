@@ -1,6 +1,6 @@
-import React, {useEffect, useState} from "react";
-import {Button, Card, Form, Input, message, Modal, Select} from "antd";
-import {LIST_OF_POSITION, SPOT_LIST, IEmployeeList, IEditEmployee, WEEKDAYS, SelectedDayValueKey} from "../../../utils/constants";
+import React, {useEffect} from "react";
+import {Button, Form, Input, message, Modal, Select} from "antd";
+import {LIST_OF_POSITION, SPOT_LIST, IEditEmployee} from "../../../utils/constants";
 
 import {EditEmployeeDialogWrapper, EditEmployeeForm} from "./styled";
 import {IListOfEmployees, changeEmployee} from "../../../services/FileBrowserService";
@@ -21,24 +21,6 @@ interface ISelectedDayState {
     Сб: boolean;
     Вс: boolean;
 }
-
-interface WorkTimeState {
-    [key: string]: string;
-}
-
-const TIME_WORK: string[] = ['7:00 - 19:00', '8:00 - 20:00', '10:00 - 22:00', '20:00 - 8:00'];
-
-const initialSelectedDayState: ISelectedDayState = {
-    Пн: false,
-    Вт: false,
-    Ср: false,
-    Чт: false,
-    Пт: false,
-    Сб: false,
-    Вс: false
-}
-
-
 
 export const EditEmployeeDialog = (
     {

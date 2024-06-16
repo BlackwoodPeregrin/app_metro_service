@@ -107,6 +107,7 @@ export const WEEKDAYS2 = [
     {6: 'Сб'},
     {7: 'Вс'}
 ];
+
 export interface IDaysOfWeek {
     key: workDay, name: string
 }

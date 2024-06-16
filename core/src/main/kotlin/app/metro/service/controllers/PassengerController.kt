@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import app.metro.service.entity.Passenger
 import app.metro.service.repository.BidRepository
 import app.metro.service.repository.PassengerRepository
-import io.swagger.annotations.Api
-import io.swagger.annotations.ApiOperation
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import java.time.LocalDate
@@ -20,7 +18,6 @@ import kotlin.math.log
 
 @RestController
 @RequestMapping("/api/v1/metro/service/passenger")
-@Api(value = "Пассажиры", description = "Операции с пассажирами")
 open class PassengerController(
     @Autowired val passengersRepo: PassengerRepository,
     @Autowired val bidRepo: BidRepository
@@ -30,7 +27,6 @@ open class PassengerController(
     }
 
     @GetMapping("/all")
-    @ApiOperation(value = "Получить список всех пассажиров")
     fun getAllPassengers(): Response {
         logger.info("getAllPassengers")
 
@@ -42,7 +38,6 @@ open class PassengerController(
     }
 
     @PostMapping("/add")
-    @ApiOperation(value = "Добавить нового пассажира")
     fun addPassenger(@RequestBody passenger: Passenger): Response {
         logger.info("passenger = $passenger")
 
@@ -55,7 +50,6 @@ open class PassengerController(
     }
 
     @PostMapping("/remove")
-    @ApiOperation(value = "Удалить пассажира")
     fun removePassenger(@RequestBody idPassenger: Int): Response {
         val passenger = passengersRepo.findById(idPassenger)
         if (!passenger.isPresent) {
@@ -78,7 +72,6 @@ open class PassengerController(
     }
 
     @PostMapping("/change")
-    @ApiOperation(value = "Изменить данные пассажира")
     fun changePassenger(@RequestBody modifyPassenger: Passenger): Response {
         val passenger = passengersRepo.findById(modifyPassenger.id)
         if (!passenger.isPresent) {

@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm") version "1.9.22"
-    id("org.springframework.boot") version "2.5.9"
+    id("org.springframework.boot") version "2.6.7"
     application
 }
 
@@ -13,10 +13,10 @@ repositories {
 }
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:2.5.9")
-    implementation("org.springframework.boot:spring-boot-starter-web:2.5.9")
-    implementation("org.springframework.boot:spring-boot-starter-webflux:2.5.9")
-    implementation("org.springframework.boot:spring-boot-configuration-processor:2.5.9")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:2.6.7")
+    implementation("org.springframework.boot:spring-boot-starter-web:2.6.7")
+    implementation("org.springframework.boot:spring-boot-starter-webflux:2.6.7")
+    implementation("org.springframework.boot:spring-boot-configuration-processor:2.6.7")
 
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.0")
 
@@ -25,8 +25,6 @@ dependencies {
     implementation("org.hibernate:hibernate-core:5.5.7.Final")
     implementation("org.hibernate:hibernate-entitymanager:5.5.7.Final")
     implementation("javax.xml.bind:jaxb-api:2.3.1")
-
-    implementation("io.springfox:springfox-boot-starter:3.0.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
 

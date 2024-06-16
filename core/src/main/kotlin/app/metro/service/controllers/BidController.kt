@@ -7,8 +7,6 @@ import app.metro.service.entity.Bid
 import app.metro.service.entity.Employee
 import app.metro.service.repository.*
 import app.metro.service.services.*
-import io.swagger.annotations.Api
-import io.swagger.annotations.ApiOperation
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -23,7 +21,6 @@ import java.time.Duration
 
 @RestController
 @RequestMapping("/api/v1/metro/service/bid")
-@Api(value = "Заявки", description = "Операции с заявками")
 open class BidController(
     @Autowired private val passengerRepo: PassengerRepository,
     @Autowired private val bidRepository: BidRepository,
@@ -42,7 +39,6 @@ open class BidController(
     }
 
     @PostMapping("/accept")
-    @ApiOperation(value = "Установить статус заявке 'Принята'")
     fun employeeAcceptBid(@RequestBody idBid: Int): Response {
         return try {
             changeStatusBid(idBid, BidStatus.ACCEPTED)
@@ -53,7 +49,6 @@ open class BidController(
     }
 
     @PostMapping("/on_the_way")
-    @ApiOperation(value = "Установить статус заявке 'Инспектор выехал'")
     fun employeeOnTheWay(@RequestBody idBid: Int): Response {
         return try {
             changeStatusBid(idBid, BidStatus.ON_THE_WAY)
@@ -64,7 +59,6 @@ open class BidController(
     }
 
     @PostMapping("/wait_passenger")
-    @ApiOperation(value = "Установить статус заявке 'Инспектор на месте'")
     fun employeeWaitPassenger(@RequestBody idBid: Int): Response {
         return try {
             changeStatusBid(idBid, BidStatus.WAIT_PASSENGER)
@@ -75,7 +69,6 @@ open class BidController(
     }
 
     @PostMapping("/start")
-    @ApiOperation(value = "Установить статус заявке 'Поездка'")
     fun employeeStartBid(@RequestBody idBid: Int): Response {
         val bid = bidRepository.findById(idBid)
         if (!bid.isPresent) {
@@ -93,7 +86,6 @@ open class BidController(
     }
 
     @PostMapping("/finish")
-    @ApiOperation(value = "Установить статус заявке 'Заявка закончена'")
     fun employeeFinishBid(@RequestBody idBid: Int): Response {
         val bid = bidRepository.findById(idBid)
         if (!bid.isPresent) {
@@ -111,7 +103,6 @@ open class BidController(
     }
 
     @PostMapping("/late/employee")
-    @ApiOperation(value = "Установить статус заявке 'Инспектор опаздывает'")
     fun employeeLate(@RequestBody idBid: Int): Response {
         return try {
             changeStatusBid(idBid, BidStatus.INSPECTOR_LATE)
@@ -122,7 +113,6 @@ open class BidController(
     }
 
     @PostMapping("/late/passenger")
-    @ApiOperation(value = "Установить статус заявке 'Пассажир опаздывает'")
     fun passengerLate(@RequestBody idBid: Int): Response {
         return try {
             changeStatusBid(idBid, BidStatus.PASSENGER_LATE)
@@ -133,7 +123,6 @@ open class BidController(
     }
 
     @PostMapping("/cansel")
-    @ApiOperation(value = "Отменить заявку и установить статус 'Отменена'")
     fun canselBid(@RequestBody idBid: Int): Response {
         return try {
             assignedBidRepo.removeBidFromEmployees(idBid)
@@ -145,7 +134,6 @@ open class BidController(
     }
 
     @PostMapping("/all/filter")
-    @ApiOperation(value = "Позволяет получить заявки по входящему фильтру")
     fun getAllBidsByFilter(@RequestBody filter: FilterBidSearch): Response {
         var bids = bidRepository.findAll()
 
@@ -250,7 +238,6 @@ open class BidController(
     }
 
     @GetMapping("/all")
-    @ApiOperation(value = "Получить все заявки")
     fun getAllBidsCurrentDate(): Response {
         val res = bidRepository.findAll()
 //            .filter { it.date == LocalDate.now() }
@@ -264,7 +251,6 @@ open class BidController(
     }
 
     @PostMapping("/all/employee")
-    @ApiOperation(value = "Получить все заявки на конкретного сотрудника")
     fun getAllBidByEmployee(@RequestBody employeeId: Int): Response {
         val employee = employeeRepository.findById(employeeId)
         if (!employee.isPresent) {
@@ -277,7 +263,6 @@ open class BidController(
     }
 
     @PostMapping("/calculate")
-    @ApiOperation(value = "Автоматически рассчитать время выполенения заявки")
     fun calculateTimeBid(@RequestBody newBid: Bid): Response {
         newBid.timePredict = bidService.calculatePredictTime(newBid)
 
@@ -285,7 +270,6 @@ open class BidController(
     }
 
     @PostMapping("/edit")
-    @ApiOperation(value = "Редактировать заявку")
     fun editRegisteredBid(@RequestBody editBid: Bid): Response {
         val optionBid = bidRepository.findById(editBid.id)
         if (!optionBid.isPresent) {
@@ -335,7 +319,6 @@ open class BidController(
     }
 
     @PostMapping("/alternative_time")
-    @ApiOperation(value = "Получить альтернативное время начала исполнения заявки, в случае если желаемое время занято")
     fun alternativeTimeBid(@RequestBody newBid: Bid): Response {
         if (newBid.timePredict == null) {
             newBid.timePredict = bidService.calculatePredictTime(newBid)
@@ -454,7 +437,6 @@ open class BidController(
     }
 
     @PostMapping("/add")
-    @ApiOperation(value = "Добавить новую заявку")
     fun addNewBid(@RequestBody newBid: Bid): Response {
         if (newBid.date >= LocalDate.now()) {
             AddBidResponse(added = false)
@@ -472,7 +454,6 @@ open class BidController(
     }
 
     @PostMapping("/redistribute")
-    @ApiOperation(value = "Автоматическое распределение")
     fun redistributeBids(@RequestBody date: LocalDate): Response {
         val bids = bidRepository.findAll()
             .filter { it.date == date }

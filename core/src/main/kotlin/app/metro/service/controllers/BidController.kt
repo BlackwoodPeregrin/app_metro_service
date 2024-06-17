@@ -1,4 +1,4 @@
-package app.metro.service.controllers
+fpackage app.metro.service.controllers
 
 import app.metro.service.controllers.request.FilterBidSearch
 import app.metro.service.controllers.response.*
@@ -471,14 +471,14 @@ open class BidController(
         }
     }
 
-    @PostMapping("/redistribute")
+    @PostMapping("/redistribute/dense")
     fun redistributeBids(@RequestBody date: LocalDate): Response {
         class Response(val unAssignedBids: List<Bid>): SuccessResponse()
 
         return Response(redistributeBids(date, Algorithm.DENSE))
     }
 
-    @PostMapping("/redistribute/dense")
+    @PostMapping("/redistribute/uniform")
     fun redistributeBidsUniform(@RequestBody date: LocalDate): Response {
         class Response(val unAssignedBids: List<Bid>): SuccessResponse()
 

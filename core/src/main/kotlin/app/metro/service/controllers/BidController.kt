@@ -450,7 +450,7 @@ open class BidController(
             assignedBidRepo.assignNewBid(employeesTakeBid, newBid)
             AddBidResponse(added = true)
         } else {
-            AddBidResponse(added = false)
+            alternativeTimeBid(newBid)
         }
     }
 

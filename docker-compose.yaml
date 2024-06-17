@@ -15,22 +15,22 @@ services:
       context: ./auth
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8000:8080"
     depends_on:
       - auth_db
     volumes:
       - auth:/app
       
-  core:
-    build:
-      context: ./core
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8080"
-    depends_on:
-      - core_db
-    volumes:
-      - core:/app
+  # core:
+  #   build:
+  #     context: ./core
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8000:8080"
+  #   depends_on:
+  #     - core_db
+  #   volumes:
+  #     - core:/app
 
   core_db:
     image: postgres

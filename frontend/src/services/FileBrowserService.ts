@@ -1,5 +1,5 @@
 
-const localHost = 'http://194.113.35.17:8000';
+const localHost = 'http://localhost:8080';
 const authServiceAddr = 'http://194.113.35.17:8080';
 
 export type Category = 'ИЗТ' | 'ИЗ' | 'ИС' | 'ИК' | 'ИО' | 'ДИ' | 'ПЛ' | 'РД' | 'РДК' | 'ОГД' | 'ОВ' | 'ИУ';

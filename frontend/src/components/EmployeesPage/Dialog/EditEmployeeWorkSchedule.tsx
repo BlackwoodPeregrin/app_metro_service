@@ -64,7 +64,7 @@ export const EditEmployeeWorkSchedule = (
    const handleChangeSchedule = (date: any) => {
         changeEmployeeSchedule(date)
             .then((res) => {
-                if(res.bidsId.length > 0){
+                if(res.bidsId?.length > 0){
                     setListOfUnallocatedTasksIsVisible(true);
                     setIdOfUnallocatedTasks(res.bidsId)
                 } else {
@@ -97,8 +97,6 @@ export const EditEmployeeWorkSchedule = (
                     start: values[key].split(' - ')[0],
                     end: values[key].split(' - ')[1]
                 }
-
-
             };
             return acc;
         }, {});
@@ -110,6 +108,7 @@ export const EditEmployeeWorkSchedule = (
         })
         setIsEditEmployeeWorkScheduleVisible(false);
         setSelectedDay(initialSelectedDayState);
+        setWorkTime({})
     }
 
     const handleWorkTimeChange = (day: SelectedDayValueKey, value: Dayjs | null, type: 'work' | 'dinner', timeType: 'start' | 'end') => {
@@ -126,7 +125,6 @@ export const EditEmployeeWorkSchedule = (
     };
 
     const handleChooseWorkDay = (value: string) => {
-        console.log('value', value)
         setSelectedDay((prevSelectedDay) => ({
             ...prevSelectedDay,
             [value]: !prevSelectedDay[value]

@@ -14,7 +14,8 @@ export const ApplicationsForEmployee = () => {
     const [employeeBidList, setEmployeeBidList] = useState<IBidAllEmployeeList[]>([]);
     const [currentApplicationIndex, setCurrentApplicationIndex] = useState(0);
     const [completedApplications, setCompletedApplications] = useState<IBidAllEmployeeList[]>([]);
-    const { id, isAuth } = useAuth();
+    const { user, logout } = useAuth();
+    const id = user.id;
 
     const getEmployeeBidList = (idEmployee: number) => {
         bidAllEmployee(idEmployee)
@@ -43,27 +44,26 @@ export const ApplicationsForEmployee = () => {
 
     }, []);
 
-    const myApplications = employeeBidList.sort((a, b) => {
-        const [hoursA, minutesA, secondsA] = a.time.split(':').map(Number);
-        const [hoursB, minutesB, secondsB] = b.time.split(':').map(Number);
 
-        if (hoursA !== hoursB) {
-            return hoursA - hoursB;
-        } else if (minutesA !== minutesB) {
-            return minutesA - minutesB;
-        } else {
-            return secondsA - secondsB;
-        }
-    })
+    const myApplications = employeeBidList?.sort((a, b) => {
+            const [hoursA, minutesA, secondsA] = a.time.split(':').map(Number);
+            const [hoursB, minutesB, secondsB] = b.time.split(':').map(Number);
+    
+            if (hoursA !== hoursB) {
+                return hoursA - hoursB;
+            } else if (minutesA !== minutesB) {
+                return minutesA - minutesB;
+            } else {
+                return secondsA - secondsB;
+            }
+        })
+    const currentApplication = myApplications?.[currentApplicationIndex];
+    const remainingApplications = myApplications?.slice(currentApplicationIndex + 1);
+        
 
     const handleCallDispatcher = () => {
         window.location.href = `tel:${+7999999999}`;
     };
-
-
-
-    const currentApplication = myApplications[currentApplicationIndex];
-    const remainingApplications = myApplications.slice(currentApplicationIndex + 1);
 
     const findStationName = (id: number) => nameStations.find((station) => +station.id === id)?.name_station;
 
@@ -104,7 +104,7 @@ export const ApplicationsForEmployee = () => {
                 break;
         }
 
-        if (currentApplication.status === 'Заявка закончена') {
+        if (currentApplication?.status === 'Заявка закончена') {
             setCompletedApplications([...completedApplications, currentApplication]);
             setCurrentApplicationIndex(currentApplicationIndex + 1);
         }
@@ -118,6 +118,9 @@ export const ApplicationsForEmployee = () => {
                 <div className="button-call">
                     <div>Диспетчер</div>
                     <Button type="primary" className="dispatcher-call" onClick={handleCallDispatcher} icon={<PhoneOutlined />} />
+                    <Button type="primary" style={{backgroundColor: "coral", marginLeft: 20}} onClick={() => logout()}>
+                        Выйти
+                    </Button>
                 </div>
             </header>
             <Tabs className="tabs-panel" defaultActiveKey="1">

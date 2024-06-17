@@ -37,6 +37,7 @@ import {
 } from "../../services/FileBrowserService";
 import {nameStations} from "../../utils/constants";
 import SidebarMenu from "../SidebarMenu/SidebarMenu";
+import { useAuth } from '../../context/authContext';
 
 
 const { TabPane } = Tabs;
@@ -92,6 +93,7 @@ const OperatorPage: React.FC = () => {
     const [requestOfCreateAppParameter, setRequestOfCreateAppParameter] = useState<IAddBidProps | null>(null);
     const [alternativeApplicationTimesIsVisible, setAlternativeApplicationTimesIsVisible] = useState<boolean>(false);
     const [alternativeApplicationTimesList, setAlternativeApplicationTimesList] = useState<string[]>([]);
+    const {logout} = useAuth();
 
     const getListOfEmployees = () => {
         requestListOfEmployee()
@@ -106,7 +108,6 @@ const OperatorPage: React.FC = () => {
     const calculateTimeBid = (props: IAddBidProps) => {
         calculateNewBid(props)
             .then(respons => {
-                console.log(respons)
                 setTimePredict(respons.timePredict.split(':').slice(0,2).join(':'))
             })
     }
@@ -136,7 +137,6 @@ const OperatorPage: React.FC = () => {
         getListOfEmployees();
         requestListOfBid().then(response => {
             setListOfBids(response.bids)
-            console.log(response.bids.filter(time=> time.bid.status !== 'Заявка закончена'))
         })
     }, [])
 
@@ -372,6 +372,9 @@ const OperatorPage: React.FC = () => {
                     onClick={handleOpenSearchModal}
                 >
                     Поиск заявок
+                </Button>
+                <Button type="primary" onClick={() => logout()}>
+                    Выйти
                 </Button>
             </div>
             <div style={{ marginTop: '20px', width: '200px', display:' flex', flexDirection: 'column' }}>

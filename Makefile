@@ -1,18 +1,14 @@
-.PHONY: up down prehook build
+.PHONY: up down build
 
 FRONT_PATH := frontend
 STATIC_PATH := auth/frontend
 
-prehook:
-	git checkout docker
-
-build: prehook
+build:
 	cd ${FRONT_PATH} && npm ci && npm run build
-	cd ${FRONT_PATH} && mkdir -p ${FRONT_PATH}
-	cp -r ${FRONT_PATH}/build/ ${STATIC_PATH}
+	mkdir -p ${STATIC_PATH}
+	cp -r ${FRONT_PATH}/build/ ${STATIC_PATH}/
 
 up:
 	docker compose up -d
 
 down:
-	docker compose down

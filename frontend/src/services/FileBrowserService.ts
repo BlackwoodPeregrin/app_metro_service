@@ -75,6 +75,12 @@ export interface IResponseAddNewPassenger {
     message: string;
 }
 
+export interface IResponseAddNewEmployee {
+    password: string,
+    code: number,
+    message: string,
+}
+
 export interface IEditWorkSchedule {
     id: number;
     workSchedule: IEmployeeWorkSchedule
@@ -268,7 +274,7 @@ export const requestListOfEmployee = async (): Promise<IResponseGetAllEmployees>
     return await response.json();
 }
 
-export const addNewEmployee = async (employeeData: IPassenger): Promise<IResponseAddNewPassenger> => {
+export const addNewEmployee = async (employeeData: IPassenger): Promise<IResponseAddNewEmployee> => {
     const response = await fetch(`${localHost}/api/v1/metro/service/employee/add`, {
         method: 'POST',
         headers: {

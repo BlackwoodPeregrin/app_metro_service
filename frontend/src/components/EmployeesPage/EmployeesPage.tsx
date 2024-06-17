@@ -1,10 +1,11 @@
 import React, {useEffect, useState} from 'react';
 
-import {Card, Row, Col, Button, Form, Modal, Input, Select, Pagination, message} from 'antd';
+import {Card, Row, Col, Button, Form, Modal, Input, Select, Pagination, message, Typography} from 'antd';
+
 
 import RedCross from "../../icons/RedCross";
 import {SPOT_LIST, LIST_OF_POSITION, IAddEmployee, PAGE_SIZE, daysOfWeek} from "../../utils/constants";
-import {EditTwoTone} from '@ant-design/icons';
+import {EditTwoTone, CopyOutlined} from '@ant-design/icons';
 import {EditEmployeeWorkSchedule} from "./Dialog/EditEmployeeWorkSchedule";
 import {UnallocatedTasks} from "./Dialog/UnallocatedTasks";
 
@@ -25,6 +26,11 @@ import {
     employeeSickLeave
 } from "../../services/FileBrowserService";
 
+import { CopyToClipboard } from 'react-copy-to-clipboard';
+import { useAuth } from '../../context/authContext';
+
+const { Title } = Typography;
+
 const AddEmployeeForm = styled(Form)`
     margin-bottom: 20px;
 `;
@@ -41,6 +47,9 @@ export const EmployeesPage: React.FC = () => {
     const [isEditEmployeeWorkScheduleVisible, setIsEditEmployeeWorkScheduleVisible] = useState<boolean>(false);
     const [listOfUnallocatedTasksIsVisible, setListOfUnallocatedTasksIsVisible] = useState(false);
     const [idOfUnallocatedTasks, setIdOfUnallocatedTasks] = useState<number[]>([]);
+    const [passwordOfNewEmployee, setPasswordOfNewEmployee] = useState<string>('');
+    const [passwordModalIsVisible, setPasswordModalIsVisible] = useState<boolean>(false);
+    const {logout} = useAuth();
 
     const [addEmployeeForm] = Form.useForm<IAddEmployee>();
 
@@ -57,7 +66,6 @@ export const EmployeesPage: React.FC = () => {
     const getWorkSchedule = () => {
         workSchedule()
             .then(response => {
-                console.log(response);
                 setEmployeeWorkSchedule(response);
             })
             .catch(() => {
@@ -72,10 +80,12 @@ export const EmployeesPage: React.FC = () => {
 
 
     const handleAddNewEmployee = (values: any) => {
-        console.log(values);
         addNewEmployee({
             ...values,
             sex: values.sex === 'Мужчина' ? "Male" : "Female"
+        }).then(response => {
+            setPasswordOfNewEmployee(response.password);
+            setPasswordModalIsVisible(true);
         })
         setIsAddEmployeeModalVisible(false);
     }
@@ -122,6 +132,10 @@ export const EmployeesPage: React.FC = () => {
             })
     }
 
+    const handleCopy = () => {
+        message.success('Текст скопирован!');
+    };
+
     return (
         <HomePageWrapper>
             <div className="header">
@@ -130,6 +144,9 @@ export const EmployeesPage: React.FC = () => {
                 <Button type="primary" icon={<PlusOutlined/>} onClick={() => setIsAddEmployeeModalVisible(true)}>
                     Зарегистрировать нового сотрудника
                 </Button>
+                <Button type="primary" onClick={() => logout()}>
+                    Выйти
+                </Button>
             </div>
             <Input
                 placeholder="Поиск по фамилии"
@@ -137,6 +154,25 @@ export const EmployeesPage: React.FC = () => {
                 onChange={handleSearch}
                 style={{ margin: '20px 0' }}
             />
+            <Modal
+                title="Пароль сотрудника"
+                open={passwordModalIsVisible}
+                onCancel={() => {
+                    setPasswordModalIsVisible(false);
+                }}
+                footer={null}
+            >
+
+                <CopyToClipboard text={passwordOfNewEmployee} onCopy={handleCopy}>
+                    <Button
+                        icon={<CopyOutlined />}
+                        style={{ border: 'none', background: 'none', padding: 0, margin: 0 }}
+                    >
+                        <Title level={3}>{passwordOfNewEmployee}</Title>
+                    </Button>
+                </CopyToClipboard>
+
+            </Modal>
             <Modal
                 title="Новый сотрудник"
                 open={isAddEmployeeModalVisible}

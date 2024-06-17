@@ -10,6 +10,7 @@ import {PassengerPageDialog} from "./PassengersPageDialog/PassengersPageDialog"
 import {addNewPassenger, requestListOfPassengers, deletePassenger, IListOfPassengers, IPassenger} from "../../services/FileBrowserService";
 import {PAGE_SIZE} from "../../utils/constants";
 import SidebarMenu from "../SidebarMenu/SidebarMenu";
+import { useAuth } from '../../context/authContext';
 
 const Header = styled.div`
     display: flex;
@@ -32,6 +33,7 @@ export const PassengersPage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [currentPage, setCurrentPage] = useState<number>(1);
     const[editPassengerModalValue, setEditPassengerModalValue] = useState<IListOfPassengers | null>(null);
+    const {logout} = useAuth();
 
     const getListOfPassengers = () => {
         requestListOfPassengers()
@@ -101,6 +103,9 @@ export const PassengersPage: React.FC = () => {
                 <div>Список пассажиров</div>
                 <Button type="primary" icon={<PlusOutlined/>} onClick={() => setIsNewPassengerModalVisible(true)}>Новый
                     пассажир
+                </Button>
+                <Button type="primary" onClick={() => logout()}>
+                    Выйти
                 </Button>
             </Header>
             <Input

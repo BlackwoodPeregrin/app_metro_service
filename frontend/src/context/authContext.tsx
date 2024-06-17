@@ -1,21 +1,33 @@
 import { jwtDecode } from 'jwt-decode';
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { LayoutRouteProps, Navigate, useNavigate } from 'react-router-dom';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { LayoutRouteProps, Navigate } from 'react-router-dom';
 import { refreshAuth } from '../services/FileBrowserService';
 
 
+interface User {
+    id: number;
+    role: string;
+}
+
 interface AuthContextType {
     isAuth: boolean;
-    id: string | null;
+    user: User;
     login: () => void;
     logout: () => void;
+    loading: boolean;
+}
+
+const emptyUser = {
+    id: -1,
+    role: "ci"
 }
 
 const AuthContext = createContext<AuthContextType>({
     isAuth: false,
-    id: null,
+    user: emptyUser,
     login: () => {},
-    logout: () => {}
+    logout: () => {},
+    loading: true,
 });
 
 type Props = {
@@ -29,7 +41,7 @@ interface AuthData {
     iat: number;
 }
 
-const checkAuth = () => {
+const checkAuth = async () => {
     const access = localStorage.getItem('access') || '';
     const refresh = localStorage.getItem('refresh') || '';
 
@@ -40,33 +52,49 @@ const checkAuth = () => {
         const timeDiff = authData.exp - Math.floor(now / 1000);
         ok = timeDiff > 0;
         if (!ok) {
-            refreshAuth(refresh);
+            ok = await refreshAuth(refresh);
         }
-        return authData;
     }
-    return false;
+    return ok;
 }
 
-export const AuthProvider: React.FC<Props> = (props: Props) => {
-    const employeeAuth = checkAuth();
-    let ok = false;
-    let id1 = null;
-    if(employeeAuth) {
-        ok = true;
-        id1 = employeeAuth.id
-    }
-    const [isAuth, setIsAuth] = useState(ok);
-    const [id, setId] = useState<string | null>(id1);
-    // if (employeeAuth) {
-    //     setIsAuth(true);
-    //     // setId(employeeAuth.id)
-    // }
+const changeUser = (user: User, newUser: User) => (user.id = newUser.id, user.role = newUser.role)
 
-    const login = () => setIsAuth(true);
-    const logout = () => setIsAuth(false);
+export const AuthProvider: React.FC<Props> = (props: Props) => {
+    const [isAuth, setIsAuth] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    let user = {id: -1, role: 'ci'};
+
+    useEffect(() => {
+        const start = async () => {
+            const ok = await checkAuth();
+            if (ok) {
+                setIsAuth(true);
+                const access = localStorage.getItem('access') || '';
+                const {id: idStr, role}: AuthData = jwtDecode(access);
+                changeUser(user, {id: Number(idStr), role})
+            }
+            setIsLoading(false);
+        }
+        start();
+    }, []);
+
+    const login = () => {
+        const access = localStorage.getItem('access') || '';
+        const {id: idStr, role}: AuthData = jwtDecode(access);
+        const newUser = {id: Number(idStr), role}
+        changeUser(user, newUser)
+        setIsAuth(true);
+    }
+    const logout = () => {
+        setIsAuth(false);
+        changeUser(user, emptyUser)
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+    }
 
     return (
-        <AuthContext.Provider value={{ isAuth, id, login, logout }}>
+        <AuthContext.Provider value={{ isAuth, user, login, logout, loading: isLoading }}>
             {props.children}
         </AuthContext.Provider>
     );
@@ -77,8 +105,8 @@ interface PrivateRouteProps extends LayoutRouteProps {
 }
 
 export const PrivateRoute: React.FC<PrivateRouteProps> = ({ component: Component, ...props }) => {
-    const { isAuth } = useAuth();
-    return isAuth ? <Component {...props} /> : <Navigate to={{ pathname: '/login'}}/>
+    const { isAuth, loading } = useAuth();
+    return loading ? <div>loading...</div> : isAuth ? <Component {...props} /> : <Navigate to={{ pathname: '/login'}}/>
 };
 
 export const useAuth = () => useContext(AuthContext);

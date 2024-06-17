@@ -18,15 +18,8 @@ export const Login = () => {
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<{ phoneNumber?: string; password?: string }>({});
     const [form] = Form.useForm();
-    const {login} = useAuth();
     const navigate = useNavigate();
-    const {isAuth} = useAuth();
-
-    useEffect(() => {
-        if (isAuth) {
-            navigate('/support');
-        }
-    }, []);
+    const {isAuth, user, login} = useAuth();
 
     const validate = () => {
         const newErrors: { phoneNumber?: string; password?: string } = {};
@@ -45,7 +38,11 @@ export const Login = () => {
         const loggedIn = await auth(phoneNumber, password);
         if (loggedIn) {
             login();
-            navigate('/support')
+            if (user.role === 'ci') {
+                navigate('/support')
+            } else {
+                navigate('/applications')
+            }
         }
         
     };

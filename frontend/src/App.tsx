@@ -17,7 +17,7 @@ function App() {
                     <Route path="/employees" element={<PrivateRoute component={EmployeesPage} />} />
                     <Route path="/applications" element={<PrivateRoute component={OperatorPage} />} />
                     <Route path="/passengers" element={<PrivateRoute component={PassengersPage} />} />
-                    <Route path="*" element={<Navigate to="/support"/>}></Route>
+                    <Route path="*" element={<Navigate to="/login"/>}></Route>
                 </Routes>
             </Router>
         </AuthProvider>

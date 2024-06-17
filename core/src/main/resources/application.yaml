@@ -2,7 +2,7 @@ spring:
   main:
     allow-bean-definition-overriding: true
   datasource:
-    url: jdbc:postgresql://core_db:5432/metro
+    url: jdbc:postgresql://localhost:8002/metro
     username: admin
     password: password
     driver-class-name: org.postgresql.Driver

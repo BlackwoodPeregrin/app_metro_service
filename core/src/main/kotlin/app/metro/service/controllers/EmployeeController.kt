@@ -14,6 +14,8 @@ import app.metro.service.repository.BidRepository
 import app.metro.service.repository.EmployeeRepository
 import app.metro.service.repository.EmployeeScheduleRepository
 import app.metro.service.services.BidService
+import io.swagger.annotations.Api
+import io.swagger.annotations.ApiOperation
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -33,6 +35,7 @@ import kotlin.math.log
 
 @RestController
 @RequestMapping("/api/v1/metro/service/employee")
+@Api(value = "Сотрудники", description = "Операции с сотрудниками")
 open class EmployeeController(
     @Autowired val employeeRepo: EmployeeRepository,
     @Autowired val assignedBidRepository: AssignedBidRepository,
@@ -47,6 +50,7 @@ open class EmployeeController(
         private const val LENGTH_PASSWORD = 12
     }
     @GetMapping("/all")
+    @ApiOperation(value = "Получить весь список сотрудников")
     fun getAllEmployees(): Response {
         return try {
             EmployeeResponse(employeeRepo.findAll().filter { it.active == true })
@@ -56,6 +60,7 @@ open class EmployeeController(
     }
 
     @PostMapping("/add")
+    @ApiOperation(value = "Добавить нового сотрудника")
     fun addEmployee(@RequestBody employee: Employee): Response {
         return try {
             employeeRepo.save(employee.apply {
@@ -94,6 +99,7 @@ open class EmployeeController(
     }
 
     @PostMapping("/remove")
+    @ApiOperation(value = "Удалить сотрудника")
     fun removeEmployee(@RequestBody employeeId: Int): Response {
         return try {
             val employee = getEmployee(employeeId)
@@ -110,6 +116,7 @@ open class EmployeeController(
     }
 
     @PostMapping("/change")
+    @ApiOperation(value = "Изменить данные по сотруднику")
     fun changeEmployee(@RequestBody modifyEmployee: Employee): Response {
         return try {
             employeeRepo.save(getEmployee(modifyEmployee.id)
@@ -131,6 +138,7 @@ open class EmployeeController(
     }
 
     @PostMapping("/sick_leave/on")
+    @ApiOperation(value = "Вывести на больничный")
     fun sickLeaveEmployee(@RequestBody employeeId: Int): Response {
         return try {
             val employee = getEmployee(employeeId)
@@ -168,6 +176,7 @@ open class EmployeeController(
     }
 
     @PostMapping("/sick_leave/off")
+    @ApiOperation(value = "Снять с больничного")
     fun sickLeaveEmployeeOff(@RequestBody employeeId: Int): Response {
         return try {
             val employee = getEmployee(employeeId)
@@ -180,6 +189,7 @@ open class EmployeeController(
     }
 
     @GetMapping("/get/schedule")
+    @ApiOperation(value = "Получить рабочее расписание всех сотрудников")
     fun getEmployeeSchedule(): List<AddWorkingHouseEmployee> {
         val res = mutableListOf<AddWorkingHouseEmployee>()
 
@@ -201,6 +211,7 @@ open class EmployeeController(
     }
 
     @PostMapping("/change/schedule")
+    @ApiOperation(value = "Изменить рабочее расписание сотрудника")
     fun changeWorkingHoursEmployee(@RequestBody newSchedule: AddWorkingHouseEmployee): Response {
         return try {
             val employee = getEmployee(newSchedule.employeeId)

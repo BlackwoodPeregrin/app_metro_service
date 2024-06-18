@@ -71,9 +71,14 @@ class BidService(
         logger.info("distance = $distance")
         logger.info("delta = $delta")
 
-        val hours = (distance + delta) / 3600
-        val minutes = ((distance + delta) % 3600) / 60
+        var hours = (distance + delta) / 3600
+        var minutes = ((distance + delta) % 3600) / 60
         val seconds = ((distance + delta) % 3600) % 60
+
+        if (minutes + 1 == 60) {
+            hours++
+            minutes = 0
+        }
 
         return if (seconds != 0) {
             LocalTime.of(hours, minutes + 1)
